@@ -1,17 +1,15 @@
 
-
-import React, { useState, useCallback, ChangeEvent } from 'react';
-// Fix: Remove .ts extension from import path
-import type { Prospect } from './constants';
+import React, { useState, useCallback, type ChangeEvent } from 'react';
+import type { Prospect } from './types';
 import { INDUSTRIES, EQUIPMENT_TYPES, INDUSTRY_TO_PLACE_TYPE_MAP, SUGGESTED_EQUIPMENT_NEEDS, FALLBACK_SAMPLE_PROSPECTS } from './constants';
 import { CalculatorIcon, SearchIcon, FileTextIcon, DollarSignIcon, MapPinIcon, Building2Icon, UsersIcon, CheckCircleIcon } from './components/Icons';
 
-// Access the API key directly from the window object
-const GOOGLE_PLACES_API_KEY = window.process?.env?.REACT_APP_GOOGLE_PLACES_API_KEY;
+// IMPORTANT: Ensure REACT_APP_GOOGLE_PLACES_API_KEY is set in your environment.
+const GOOGLE_PLACES_API_KEY = import.meta.env.VITE_REACT_APP_GOOGLE_PLACES_API_KEY || "AIzaSyBt-lfvLReozrb3knQKyJMkWq4T38csB74";
 
 const App: React.FC = () => {
     const [dealCount, setDealCount] = useState<number>(20);
-    const [avgCommission, setAvgCommission] = useState<number>(1500);
+    const [avgCommission, setAvgCommission] = useState<number>(1500); // Updated default
     const [city, setCity] = useState<string>('');
     const [industry, setIndustry] = useState<string>('');
     const [equipmentType, setEquipmentType] = useState<string>('');
@@ -24,41 +22,40 @@ const App: React.FC = () => {
     const monthlyIncome = dealCount * avgCommission;
     const yearlyIncome = monthlyIncome * 12;
 
-    const handleProspectsError = useCallback((message: string) => {
+    const handleProspectsError = (message: string) => {
         console.error(message);
         setApiError(message);
-        // Ensure city and industry are not empty before calling fallback
-        setProspects(FALLBACK_SAMPLE_PROSPECTS(city || "your city", industry || "selected industry"));
-        setShowResults(true); // Still show results section with fallback
-        setIsLoading(false); // Stop loading
-    }, [city, industry]);
-
+        setProspects(FALLBACK_SAMPLE_PROSPECTS(city, industry));
+    };
 
     const generateProspects = useCallback(async () => {
-        if (!city || !industry) {
-            setApiError("Please enter both city and industry.");
-            setShowResults(false); // Don't show results if input is missing
-            return;
-        }
-        if (!GOOGLE_PLACES_API_KEY || GOOGLE_PLACES_API_KEY === "YOUR_GOOGLE_PLACES_API_KEY_HERE" ) {
-            // Check against the actual placeholder you use in index.html
-            handleProspectsError('Google Places API key is not configured or is using a placeholder. Please set your valid REACT_APP_GOOGLE_PLACES_API_KEY in MICRO/index.html.');
+        if (!city || !industry) return;
+        if (!GOOGLE_PLACES_API_KEY || GOOGLE_PLACES_API_KEY === "YOUR_GOOGLE_PLACES_API_KEY_HERE") {
+            handleProspectsError('Google Places API key is not configured or is using a placeholder. Please set REACT_APP_GOOGLE_PLACES_API_KEY in index.html.');
+            setIsLoading(false);
+            setShowResults(true);
             return;
         }
         
         setIsLoading(true);
         setApiError(null);
-        setProspects([]); 
+        setProspects([]); // Clear previous prospects
 
         const searchType = INDUSTRY_TO_PLACE_TYPE_MAP[industry] || 'establishment';
         
         try {
-          const response = await fetch(
-            `https://cors-anywhere.herokuapp.com/https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchType + ' in ' + city)}&key=${GOOGLE_PLACES_API_KEY}`
-        );
+            // The cors-anywhere proxy lines below should be commented out or removed
+            // const proxyUrl = 'https://cors-anywhere.herokuapp.com/'; 
+            // const targetUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchType + ' in ' + city)}&key=${GOOGLE_PLACES_API_KEY}`;
+            // const response = await fetch(proxyUrl + targetUrl); // Ensure this line is NOT active
+            
+            // This is the direct API call:
+            const response = await fetch(
+                `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchType + ' in ' + city)}&key=${GOOGLE_PLACES_API_KEY}`
+            );
             
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error_message: response.statusText })); 
+                const errorData = await response.json().catch(() => ({})); 
                 throw new Error(`API request failed with status ${response.status}: ${errorData.error_message || response.statusText}`);
             }
             
@@ -74,8 +71,8 @@ const App: React.FC = () => {
                     const randomNeed = needs[Math.floor(Math.random() * needs.length)];
                     
                     let priority: 'High' | 'Medium' | 'Low' = 'Medium';
-                    if (place.rating && place.rating < 3.5) priority = 'High';
-                    if (place.rating && place.rating > 4.5) priority = 'Low';
+                    if (place.rating && place.rating < 3.5) priority = 'High'; // Businesses with lower ratings might be more in need of upgrades
+                    if (place.rating && place.rating > 4.5) priority = 'Low';  // Well-rated businesses might be less urgent
                     
                     return {
                         name: place.name || 'Unnamed Business',
@@ -88,15 +85,15 @@ const App: React.FC = () => {
                 });
                 setProspects(realProspects);
             } else {
-                 handleProspectsError(`No results found for ${searchType} in ${city}. Displaying sample prospects as fallback.`);
+                 handleProspectsError(`No results found for ${searchType} in ${city}. Showing sample prospects.`);
             }
         } catch (error: any) {
-            handleProspectsError(`Error fetching places: ${error.message}. Displaying sample prospects as fallback.`);
+            handleProspectsError(`Error fetching places: ${error.message}. Showing sample prospects.`);
         }
         
         setIsLoading(false);
         setShowResults(true);
-    }, [city, industry, handleProspectsError]); // Added handleProspectsError to dependency array
+    }, [city, industry]);
 
     const calculatePayment = useCallback(() => {
         const rate = 0.08; 
@@ -222,6 +219,7 @@ const App: React.FC = () => {
                     {apiError && (
                         <div role="alert" className="mb-4 p-3 bg-red-500/30 text-red-200 border border-red-400/50 rounded-lg">
                             <p><strong>API Alert:</strong> {apiError}</p>
+                            {(!GOOGLE_PLACES_API_KEY || GOOGLE_PLACES_API_KEY === "YOUR_GOOGLE_PLACES_API_KEY_HERE") && <p>Please ensure the <code>REACT_APP_GOOGLE_PLACES_API_KEY</code> in index.html is set correctly and is not a placeholder.</p>}
                         </div>
                     )}
                     <div className="grid md:grid-cols-2 gap-8">
@@ -318,7 +316,7 @@ const App: React.FC = () => {
                                 <div className="text-center py-12 text-blue-300 flex flex-col items-center justify-center h-full">
                                     <div className="w-16 h-16 mx-auto mb-4 opacity-50" aria-hidden="true"><SearchIcon /></div>
                                     <p className="text-lg">Enter city and industry to find opportunities.</p>
-                                    {isLoading && !apiError && <p className="mt-2 text-blue-400" role="status">Searching...</p>}
+                                    {isLoading && <p className="mt-2 text-blue-400" role="status">Searching...</p>}
                                 </div>
                             )}
                         </div>
@@ -463,5 +461,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-// Fix: Removed duplicated content from an erroneous merge of Icons.tsx into App.tsx which started from here.
-// This resolves errors like "Duplicate identifier 'React'", "Individual declarations in merged declaration...", and "Cannot find name..."
