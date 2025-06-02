@@ -1,0 +1,155 @@
+/* src/components/Auth/LoginPage.css */
+
+.login-container {
+    min-height: 100vh;
+    background-color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  
+  .login-card {
+    background: white;
+    padding: 32px;
+    border-radius: 8px;
+    max-width: 28rem;
+    width: 100%;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-center {
+    text-align: center;
+  }
+  
+  .login-title {
+    font-size: 1.875rem;
+    font-weight: bold;
+    color: #111827;
+    margin-bottom: 8px;
+  }
+  
+  .success-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #059669;
+    margin-bottom: 16px;
+  }
+  
+  .subtitle {
+    color: #4b5563;
+    margin-bottom: 32px;
+  }
+  
+  .message-text {
+    color: #4b5563;
+    margin-bottom: 24px;
+  }
+  
+  .login-form {
+    margin-top: 32px;
+  }
+  
+  .form-group {
+    margin-bottom: 16px;
+  }
+  
+  .form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 4px;
+  }
+  
+  .login-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+  }
+  
+  .login-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  .login-button {
+    width: 100%;
+    padding: 10px 16px;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .login-button:hover {
+    background-color: #1d4ed8;
+  }
+  
+  .login-button.disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
+  
+  .toggle-section {
+    margin-top: 24px;
+    text-align: center;
+  }
+  
+  .toggle-button {
+    background: none;
+    border: none;
+    color: #2563eb;
+    font-size: 0.875rem;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  
+  .toggle-button:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+  }
+  
+  .features-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  .features-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  
+  .features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.875rem;
+    color: #4b5563;
+  }
+  
+  .features-list li {
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+  
+  /* Fix for Safari/iOS */
+  input[type="email"],
+  input[type="text"],
+  input[type="tel"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }

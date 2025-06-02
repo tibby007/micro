@@ -1,13 +1,19 @@
 
 
 export interface Prospect {
+    id?: string;
     name: string;
-    type: string; // Industry
-    equipment: string; // Potential equipment need
-    priority: 'High' | 'Medium' | 'Low';
     address: string;
-    rating: string | number; // Google Places API returns number, fallback might be string
-}
+    type: string;
+    industry?: string;
+    phone?: string;
+    website?: string;
+    rating?: number;
+    email?: string;
+    employeeCount?: string;
+    decisionMaker?: string;
+    priority?: string;
+  }
 
 // Define a type for the equipment types mapping
 export type EquipmentTypeMap = {

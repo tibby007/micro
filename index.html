@@ -1,23 +1,51 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+
+    <script src="https://cdn.tailwindcss.com"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Micro Ticket Deal Engine - Commercial Capital Connect</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // =====================================================================================
-        // IMPORTANT: REPLACE "YOUR_GOOGLE_PLACES_API_KEY_HERE" WITH YOUR ACTUAL GOOGLE PLACES API KEY
-        // IF THE ONE BELOW IS A PLACEHOLDER OR INVALID.
+        // CRITICAL API KEY CONFIGURATION - UPDATED FOR NEW PLACES API
+        // =====================================================================================
+        // The value for VITE_GOOGLE_PLACES_API_KEY below MUST BE REPLACED with your
+        // actual Google Places API key.
+        //
+        // THIS KEY IS USED BY THE APPLICATION TO MAKE NEW PLACES API CALLS.
+        //
+        // ENSURE:
+        // 1. This key EXACTLY MATCHES the API key you have configured in your
+        //    Google Cloud Console (console.cloud.google.com).
+        // 2. In the Google Cloud Console, for this specific API key:
+        //    a. The "Places API (New)" is ENABLED for your project.
+        //    b. The API key is RESTRICTED to only use "Places API (New)" (recommended).
+        //    c. "Application restrictions" are set to "None" (for initial testing) or
+        //       configured appropriately for your deployment.
+        //    d. Billing is enabled for your project.
+        //
+        // An incorrect or unauthorized key will prevent the "Opportunity Finder" from working.
         // =====================================================================================
         window.process = {
           env: {
-            REACT_APP_GOOGLE_PLACES_API_KEY: "AIzaSyDEaLeoI0fhJtdXYWb1SqlhRTgdLhV9d78"
-            // This key will be used by the App.tsx component.
-            // Ensure the Google Places API is enabled for this key in your Google Cloud Console.
+            VITE_GOOGLE_PLACES_API_KEY: "AIzaSyDEaLeoI0fhJtdXYWb1SqlhRTgdLhV9d78" 
+            // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            // REPLACE THIS WITH YOUR ACTUAL KEY AND VERIFY IT IN GOOGLE CLOUD CONSOLE
+            // NOTE: Changed from REACT_APP_GOOGLE_PLACES_API_KEY to VITE_GOOGLE_PLACES_API_KEY
+            // to match the new App.tsx code
           }
         };
+        
+        // Debug logging
+        console.log("INDEX.HTML DEBUG: window.process defined.", window.process);
+        if (window.process && window.process.env && window.process.env.VITE_GOOGLE_PLACES_API_KEY) {
+            console.log("INDEX.HTML DEBUG: VITE_GOOGLE_PLACES_API_KEY:", window.process.env.VITE_GOOGLE_PLACES_API_KEY.substring(0,5) + "...");
+        } else {
+            console.error("INDEX.HTML DEBUG ERROR: API Key not found!");
+        }
         // =====================================================================================
     </script>
     <style>
@@ -90,11 +118,11 @@
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
         }
     </style>
-   
+
 </head>
 <body class="bg-blue-900">
     <div id="root"></div>
-    <!-- React app will be injected here by src/main.tsx -->
+    <!-- React app will be injected here by main.tsx -->
     <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
