@@ -1,42 +1,41 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import axios from 'axios';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log('APOLLO_API_KEY exists:', !!process.env.APOLLO_API_KEY);
-  console.log('APOLLO_API_KEY length:', process.env.APOLLO_API_KEY?.length);
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { domain } = req.body;
   
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  if (!domain) {
+    return res.status(400).json({ error: 'Domain required' });
+  }
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  const apiKey = process.env.APOLLO_API_KEY;
+  
+  if (!apiKey) {
+    return res.status(500).json({ error: 'Api key required' });
   }
 
   try {
-    const { endpoint, data } = req.body;
-    
-    const response = await axios({
+    const response = await fetch('https://api.apollo.io/v1/organizations/search', {
       method: 'POST',
-      url: `https://api.apollo.io/v1/${endpoint}`,
       headers: {
-        'X-Api-Key': process.env.APOLLO_API_KEY,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'X-Api-Key': apiKey
       },
-      data
+      body: JSON.stringify({
+        q_organization_domain: domain,
+        page: 1,
+        per_page: 1
+      })
     });
 
-    res.status(200).json(response.data);
-  } catch (error: any) {
-    console.error('Apollo API error:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ 
-      error: error.response?.data || 'Apollo API request failed' 
-    });
+    const data = await response.json();
+    res.status(200).json(data);
+  } catch (error) {
+    console.error('Apollo API error:', error);
+    res.status(500).json({ error: 'Apollo API request failed' });
   }
 }
