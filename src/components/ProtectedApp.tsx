@@ -338,10 +338,9 @@ const ProtectedApp = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {searchResults.map((business: any, index) => {
                   // Get equipment recommendations from enricher
-                  const enricher = businessEnricher;
                   const equipmentSuggestions = business.industry 
-  ? businessEnricher.getEquipmentSuggestions(business.industry)
-  : businessEnricher.getEquipmentSuggestions(searchIndustry);
+                    ? businessEnricher.getEquipmentSuggestions(business.industry)
+                    : businessEnricher.getEquipmentSuggestions(searchIndustry);
                   return (
                   <div key={business.id || index} className="bg-gray-700 rounded-lg p-4">
                     <div className="flex justify-between items-start mb-2">
