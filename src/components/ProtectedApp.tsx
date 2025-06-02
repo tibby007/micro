@@ -340,9 +340,8 @@ const ProtectedApp = () => {
                   // Get equipment recommendations from enricher
                   const enricher = businessEnricher;
                   const equipmentSuggestions = business.industry 
-                    ? enricher.getEquipmentSuggestions(business.industry)
-                    : enricher.getEquipmentSuggestions(searchIndustry);
-
+  ? businessEnricher.getEquipmentSuggestions(business.industry)
+  : businessEnricher.getEquipmentSuggestions(searchIndustry);
                   return (
                   <div key={business.id || index} className="bg-gray-700 rounded-lg p-4">
                     <div className="flex justify-between items-start mb-2">
