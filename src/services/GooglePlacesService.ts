@@ -67,8 +67,7 @@ class GooglePlacesService {
       console.log('📥 Loading Google Places script...');
       const script = document.createElement('script');
       script.id = 'google-maps-places-script'; // Add an ID to prevent multiple appends
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`; // Added loading=async
-      // script.async = true; // loading=async in URL is preferred
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,maps&loading=async`;      // script.async = true; // loading=async in URL is preferred
       // script.defer = true; // Not strictly needed with async and manual promise handling
 
       script.onload = () => {
