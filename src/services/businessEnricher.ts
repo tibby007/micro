@@ -1,5 +1,3 @@
-import { EquipmentTypeMap } from '../types';
-
 interface EquipmentSuggestion {
   equipment: string;
   estimatedBudget: string;
@@ -9,13 +7,6 @@ interface EquipmentSuggestion {
 
 interface IndustryKeywords {
   [key: string]: string[];
-}
-
-interface Contact {
-  name: string;
-  title: string;
-  email?: string;
-  phone?: string;
 }
 
 class BusinessEnricher {
@@ -105,7 +96,7 @@ class BusinessEnricher {
     return enrichedProspects;
   }
 
-  private async enrichWithMockData(name: string, domain: string, location: string): Promise<any> {
+  private async enrichWithMockData(businessName: string, domain: string, businessLocation: string): Promise<any> {
     // Temporary mock data to get the app working
     const mockEmployeeCount = Math.floor(Math.random() * 50) + 5;
     const mockRevenue = ['$100K - $500K', '$500K - $1M', '$1M - $5M'][Math.floor(Math.random() * 3)];
