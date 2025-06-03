@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 // }
 
 const ProtectedApp = () => {
+  console.log("--- PROTECTED APP V4 LOADED ---"); // Use a new version number like V4
   // Deal Calculator states
   const [deals, setDeals] = useState(20);
   const [commission, setCommission] = useState(1500);
