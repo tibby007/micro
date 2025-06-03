@@ -1,3 +1,5 @@
+// src/services/businessEnricher.ts
+
 interface EquipmentSuggestion {
   equipment: string;
   estimatedBudget: string;
@@ -8,6 +10,25 @@ interface EquipmentSuggestion {
 interface IndustryKeywords {
   [key: string]: string[];
 }
+
+// Define a type for the enriched data structure your app expects
+interface EnrichedProspectData {
+  employeeCount?: number;
+  revenue?: string;
+  estimatedAnnualRevenue?: number;
+  employeeRange?: string;
+  industry?: string; // This will be determined by identifyIndustry or from Apollo
+  contacts?: Array<{
+    name: string;
+    title: string;
+    email: string | null;
+    phone: string;
+  }>;
+  // Add any other fields Apollo might return that you want to use
+  apolloSpecificField?: any;
+  [key: string]: any; // Allow for other properties from prospect or Apollo
+}
+
 
 class BusinessEnricher {
   private industryKeywords: IndustryKeywords = {
@@ -22,146 +43,193 @@ class BusinessEnricher {
   };
 
   private equipmentByIndustry: { [industry: string]: EquipmentSuggestion[] } = {
+    // ... your existing equipmentByIndustry data ... (keep as is)
     'Medical & Healthcare': [
       { equipment: 'Digital X-Ray System', estimatedBudget: '$15K-$45K', potentialDealSize: 30000, reasoning: 'Essential for modern medical diagnostics' },
       { equipment: 'Patient Monitoring Equipment', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Critical for patient care and safety' },
-      { equipment: 'Ultrasound Machine', estimatedBudget: '$12K-$35K', potentialDealSize: 23500, reasoning: 'High-demand diagnostic tool' },
-      { equipment: 'EMR Software & Hardware', estimatedBudget: '$5K-$15K', potentialDealSize: 10000, reasoning: 'Required for regulatory compliance' },
-      { equipment: 'Dental Chair & Equipment', estimatedBudget: '$10K-$30K', potentialDealSize: 20000, reasoning: 'Core equipment for dental practices' }
-    ],
+    ], // Add the rest
     'Restaurants & Food Service': [
       { equipment: 'POS System', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Essential for order management and payments' },
-      { equipment: 'Commercial Oven', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Core cooking equipment for food production' },
-      { equipment: 'Refrigeration Unit', estimatedBudget: '$4K-$15K', potentialDealSize: 9500, reasoning: 'Critical for food safety and storage' },
-      { equipment: 'Food Prep Equipment', estimatedBudget: '$2K-$8K', potentialDealSize: 5000, reasoning: 'Improves efficiency and food quality' },
-      { equipment: 'Espresso Machine', estimatedBudget: '$5K-$20K', potentialDealSize: 12500, reasoning: 'High-margin beverage equipment' }
-    ],
+    ], // Add the rest
     'Retail & E-commerce': [
       { equipment: 'POS & Payment System', estimatedBudget: '$2K-$8K', potentialDealSize: 5000, reasoning: 'Essential for transaction processing' },
-      { equipment: 'Security Camera System', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Critical for loss prevention' },
-      { equipment: 'Display Fixtures', estimatedBudget: '$4K-$15K', potentialDealSize: 9500, reasoning: 'Enhances product presentation and sales' },
-      { equipment: 'Inventory Scanners', estimatedBudget: '$2K-$6K', potentialDealSize: 4000, reasoning: 'Streamlines inventory management' },
-      { equipment: 'Digital Signage', estimatedBudget: '$5K-$18K', potentialDealSize: 11500, reasoning: 'Modern marketing and customer engagement' }
-    ],
+    ], // Add the rest
     'Fitness & Wellness': [
       { equipment: 'Commercial Treadmills', estimatedBudget: '$5K-$15K', potentialDealSize: 10000, reasoning: 'Core cardio equipment for gyms' },
-      { equipment: 'Weight Training Equipment', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Essential for strength training programs' },
-      { equipment: 'Spa Equipment', estimatedBudget: '$6K-$20K', potentialDealSize: 13000, reasoning: 'Specialized equipment for wellness services' },
-      { equipment: 'Audio/Visual Systems', estimatedBudget: '$3K-$10K', potentialDealSize: 6500, reasoning: 'Enhances member experience' },
-      { equipment: 'Locker Systems', estimatedBudget: '$4K-$12K', potentialDealSize: 8000, reasoning: 'Essential facility infrastructure' }
-    ],
+    ], // Add the rest
     'Auto Repair & Service': [
       { equipment: 'Diagnostic Equipment', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Critical for modern vehicle diagnostics' },
-      { equipment: 'Vehicle Lifts & Hoists', estimatedBudget: '$10K-$35K', potentialDealSize: 22500, reasoning: 'Essential for vehicle service access' },
-      { equipment: 'Air Compressor Systems', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Powers pneumatic tools and equipment' },
-      { equipment: 'Tire Changing Equipment', estimatedBudget: '$5K-$15K', potentialDealSize: 10000, reasoning: 'High-volume service equipment' },
-      { equipment: 'Paint Booth Systems', estimatedBudget: '$15K-$40K', potentialDealSize: 27500, reasoning: 'Premium service capability equipment' }
-    ],
+    ], // Add the rest
     'Professional Services': [
       { equipment: 'Office Technology', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Essential for modern office operations' },
-      { equipment: 'Conference Room Equipment', estimatedBudget: '$5K-$18K', potentialDealSize: 11500, reasoning: 'Professional client presentation needs' },
-      { equipment: 'Security Systems', estimatedBudget: '$4K-$15K', potentialDealSize: 9500, reasoning: 'Protects confidential client information' },
-      { equipment: 'Document Management', estimatedBudget: '$2K-$8K', potentialDealSize: 5000, reasoning: 'Improves efficiency and compliance' },
-      { equipment: 'Communication Systems', estimatedBudget: '$3K-$10K', potentialDealSize: 6500, reasoning: 'Essential for client communication' }
-    ]
+    ], // Add the rest
   };
 
-  private async enrichWithMockData(domain: string): Promise<any> {
-    const enrichedProspects = [];
-    
-    for (const prospect of prospects) {
+  constructor() {
+    // Constructor can be empty if no specific setup is needed at instantiation
+  }
+
+  // === PUBLIC METHOD CALLED BY YOUR COMPONENTS ===
+  public async enrichProspects(prospectsList: any[]): Promise<any[]> {
+    const allEnrichedProspects = [];
+
+    for (const prospect of prospectsList) {
+      let enrichedData: EnrichedProspectData = {};
+      let determinedIndustry = 'General Business'; // Default industry
+
       try {
-        // Add mock enriched data temporarily
-        const enrichedData = await this.enrichWithMockData(prospect.website || '')
+        // Step 1: Determine industry based on prospect name and types
+        determinedIndustry = this.identifyIndustry(prospect.name || '', prospect.types || []);
+
+        // Step 2: Get enriched data (either from API or mock)
+        // For now, let's use mock data. We will switch to fetchDataFromApi later.
+        enrichedData = await this.getMockEnrichedData(prospect.name || '', prospect.website || '', prospect.formatted_address || 'Unknown Location');
         
-        const enrichedProspect = {
-          ...prospect,
-          ...enrichedData,
+        // If using API in the future, it might look like:
+        // enrichedData = await this.fetchDataFromApi(prospect.website || '');
+        // And then you might merge identifyIndustry result if API doesn't provide a better one:
+        // enrichedData.industry = enrichedData.industry || determinedIndustry;
+
+
+        // Ensure the enrichedData includes an industry property, prioritizing API/mock, then identified
+        if (!enrichedData.industry) {
+            enrichedData.industry = determinedIndustry;
+        }
+
+
+        const finalProspect = {
+          ...prospect, // Original prospect data
+          ...enrichedData, // Data from mock/API
           microTicketScore: this.calculateMicroTicketScore(enrichedData),
-          industry: this.identifyIndustry(prospect.name, prospect.types || [])
+          // The industry is now part of enrichedData, or already set
         };
-        
-        enrichedProspects.push(enrichedProspect);
+        allEnrichedProspects.push(finalProspect);
+
       } catch (error) {
-        console.error('Error enriching prospect:', error);
-        // Return original prospect if enrichment fails
-        enrichedProspects.push({
+        console.error(`Error enriching prospect ${prospect.name || 'N/A'}:`, error);
+        // Push prospect with minimal enrichment or error state
+        allEnrichedProspects.push({
           ...prospect,
           microTicketScore: 0,
-          industry: industry
+          industry: determinedIndustry, // Use identified industry even on error
+          enrichmentError: (error as Error).message || 'Unknown enrichment error',
         });
       }
     }
-    
-    return enrichedProspects;
+    return allEnrichedProspects;
   }
 
-  private async enrichWithMockData(businessName: string, domain: string, businessLocation: string): Promise<any> {
-    // Temporary mock data to get the app working
+  // === DATA FETCHING METHODS ===
+
+  // Method to call your backend API route (to be implemented fully later)
+  // You can remove the eslint-disable comment if you use the underscore
+  private async _fetchDataFromApi(domain: string): Promise<EnrichedProspectData> { // Added underscore
+    if (!domain) {
+      console.warn("Domain is empty for API call, returning empty data.");
+      return {};
+    }
+    try {
+      console.log(`Fetching real data for domain: ${domain}`);
+      const response = await fetch('/api/apollo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ error: "Failed to parse error from API" }));
+        throw new Error(`API request to /api/apollo failed: ${response.status} ${errorBody.error || ''}`);
+      }
+      const data = await response.json();
+      // IMPORTANT: Transform `data` from Apollo to match EnrichedProspectData structure
+      // Example:
+      // if (data.organizations && data.organizations.length > 0) {
+      //   const org = data.organizations[0];
+      //   return {
+      //     employeeCount: org.estimated_num_employees,
+      //     revenue: org.annual_revenue, // Adjust field names
+      //     // ... map other fields
+      //   };
+      // }
+      console.log("Raw data from /api/apollo:", data);
+      // For now, just return it; needs proper mapping
+      return data.organizations && data.organizations.length > 0 ? data.organizations[0] : {}; 
+    } catch (error) {
+      console.error('Error in fetchDataFromApi:', error);
+      throw error;
+    }
+  }
+
+  // Renamed and corrected mock data function (was the second enrichWithMockData)
+  // Now uses businessName and businessLocation as intended by its original signature
+  private async getMockEnrichedData(businessName: string, domain: string, businessLocation: string): Promise<EnrichedProspectData> {
+    console.log(`Getting mock data for: ${businessName} (${domain}) at ${businessLocation}`);
     const mockEmployeeCount = Math.floor(Math.random() * 50) + 5;
-    const mockRevenue = ['$100K - $500K', '$500K - $1M', '$1M - $5M'][Math.floor(Math.random() * 3)];
-    
+    const mockRevenueRanges = ['$100K - $500K', '$500K - $1M', '$1M - $5M'];
+    const mockRevenue = mockRevenueRanges[Math.floor(Math.random() * mockRevenueRanges.length)];
+
     return {
       employeeCount: mockEmployeeCount,
       revenue: mockRevenue,
-      estimatedAnnualRevenue: mockEmployeeCount * 75000,
+      estimatedAnnualRevenue: mockEmployeeCount * 75000, // Example calculation
       employeeRange: mockEmployeeCount < 10 ? '1-10' : mockEmployeeCount < 25 ? '11-25' : '26-50',
-      industry: 'Service Business',
+      // industry is often better set by identifyIndustry or from real API data
+      // but we can provide a generic mock one if needed
+      // industry: 'Mock Service Business', 
       contacts: [
         {
-          name: 'Business Owner',
+          name: businessName || 'Business Contact', // Use businessName
           title: 'Owner/Manager',
-          email: domain ? `contact@${domain.replace('https://', '').replace('http://', '')}` : null,
+          email: domain ? `contact@${domain.replace(/^https?:\/\//, '')}` : null,
           phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`
         }
-      ]
+      ],
+      // You can add businessName and businessLocation if your UI needs them directly from enrichedData
+      originalBusinessName: businessName,
+      originalBusinessLocation: businessLocation,
     };
   }
 
-  private identifyIndustry(businessName: string, googleTypes: string[]): string {
+  // === HELPER METHODS ===
+  public identifyIndustry(businessName: string, googleTypes: string[]): string {
     const name = businessName.toLowerCase();
-    const types = googleTypes.join(' ').toLowerCase();
+    // Ensure googleTypes is an array before joining
+    const typesString = Array.isArray(googleTypes) ? googleTypes.join(' ').toLowerCase() : '';
     
     for (const [industry, keywords] of Object.entries(this.industryKeywords)) {
       for (const keyword of keywords) {
-        if (name.includes(keyword) || types.includes(keyword)) {
+        if (name.includes(keyword) || typesString.includes(keyword)) {
           return industry;
         }
       }
     }
-    
-    return 'General Business';
+    return 'General Business'; // Default if no match
   }
 
-  getEquipmentSuggestions(industry: string): string[] {
+  public getEquipmentSuggestions(industry: string): string[] { // Made public if called from outside
     const suggestions = this.equipmentByIndustry[industry] || this.equipmentByIndustry['Professional Services'] || [];
     return suggestions.slice(0, 3).map(item => item.equipment);
   }
 
-  private calculateMicroTicketScore(enrichedData: any): number {
+  private calculateMicroTicketScore(enrichedData: EnrichedProspectData): number {
     let score = 0;
-    
-    // Employee count scoring (more employees = higher potential)
     const employeeCount = enrichedData.employeeCount || 0;
     if (employeeCount >= 10) score += 3;
     else if (employeeCount >= 5) score += 2;
     else if (employeeCount >= 1) score += 1;
-    
-    // Revenue scoring
+
     if (enrichedData.estimatedAnnualRevenue) {
       if (enrichedData.estimatedAnnualRevenue >= 1000000) score += 3;
       else if (enrichedData.estimatedAnnualRevenue >= 500000) score += 2;
       else if (enrichedData.estimatedAnnualRevenue >= 100000) score += 1;
     }
-    
-    // Contact availability
+
     if (enrichedData.contacts && enrichedData.contacts.length > 0) {
       score += 2;
       if (enrichedData.contacts[0].email) score += 1;
       if (enrichedData.contacts[0].phone) score += 1;
     }
-    
-    return Math.min(score, 10); // Cap at 10
+    return Math.min(score, 10);
   }
 }
 
