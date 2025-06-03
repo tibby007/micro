@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { EquipmentTypeMap } from '../types';
 
 interface EquipmentSuggestion {
   equipment: string;
@@ -21,246 +21,156 @@ interface Contact {
 class BusinessEnricher {
   private industryKeywords: IndustryKeywords = {
     'Medical & Healthcare': ['medical', 'healthcare', 'clinic', 'hospital', 'dental', 'veterinary', 'health'],
-    'Restaurant': ['restaurant', 'cafe', 'bakery', 'bar', 'food', 'dining', 'kitchen'],
-    'Retail': ['store', 'shop', 'retail', 'boutique', 'market', 'mall'],
-    'Fitness & Wellness': ['gym', 'fitness', 'yoga', 'pilates', 'wellness', 'spa', 'salon'],
+    'Restaurant': ['restaurant', 'cafe', 'bakery', 'diner', 'kitchen'],
+    'Retail & E-commerce': ['store', 'shop', 'retail', 'boutique', 'market', 'mall'],
+    'Fitness & Wellness': ['gym', 'fitness', 'yoga', 'pilates', 'massage', 'spa', 'salon'],
     'Professional Services': ['consulting', 'law', 'accounting', 'insurance', 'real estate'],
     'Technology': ['software', 'tech', 'IT', 'computer', 'digital', 'data'],
     'Education': ['school', 'university', 'college', 'academy', 'training', 'education'],
-    'Automotive': ['auto', 'car', 'mechanic', 'tire', 'vehicle', 'automotive'],
-    'Construction': ['construction', 'contractor', 'building', 'renovation', 'plumbing', 'electrical'],
-    'Manufacturing': ['manufacturing', 'factory', 'production', 'industrial', 'warehouse']
+    'Construction & Contractors': ['construction', 'contractor', 'builder', 'plumbing', 'electrical', 'hvac']
   };
 
-  private equipmentByIndustry: { [key: string]: EquipmentSuggestion[] } = {
+  private equipmentByIndustry: { [industry: string]: EquipmentSuggestion[] } = {
     'Medical & Healthcare': [
-      { equipment: 'Digital X-Ray System', estimatedBudget: '$75K-$200K', potentialDealSize: 150000, reasoning: 'Essential diagnostic equipment for modern healthcare facilities' },
-      { equipment: 'Electronic Health Records (EHR) System', estimatedBudget: '$15K-$70K', potentialDealSize: 45000, reasoning: 'Mandatory for HIPAA compliance and efficient patient management' },
-      { equipment: 'Ultrasound Machine', estimatedBudget: '$20K-$100K', potentialDealSize: 60000, reasoning: 'Versatile diagnostic tool for various medical specialties' },
-      { equipment: 'Patient Monitoring System', estimatedBudget: '$5K-$25K', potentialDealSize: 15000, reasoning: 'Critical for patient safety and care quality' },
-      { equipment: 'Dental Chair & Equipment', estimatedBudget: '$15K-$40K', potentialDealSize: 25000, reasoning: 'Core equipment for dental practices' },
-      { equipment: 'Laboratory Equipment', estimatedBudget: '$30K-$150K', potentialDealSize: 90000, reasoning: 'Essential for in-house testing and diagnostics' },
-      { equipment: 'Telemedicine Setup', estimatedBudget: '$5K-$20K', potentialDealSize: 12000, reasoning: 'Growing necessity for remote patient care' },
-      { equipment: 'Medical Laser Equipment', estimatedBudget: '$30K-$120K', potentialDealSize: 75000, reasoning: 'Advanced treatment option for various procedures' },
-      { equipment: 'Autoclave Sterilizer', estimatedBudget: '$3K-$15K', potentialDealSize: 8000, reasoning: 'Mandatory for instrument sterilization' },
-      { equipment: 'Practice Management Software', estimatedBudget: '$5K-$30K', potentialDealSize: 15000, reasoning: 'Streamlines operations and improves efficiency' }
+      { equipment: 'Digital X-Ray System', estimatedBudget: '$15K-$45K', potentialDealSize: 30000, reasoning: 'Essential for modern medical diagnostics' },
+      { equipment: 'Patient Monitoring Equipment', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Critical for patient care and safety' },
+      { equipment: 'Ultrasound Machine', estimatedBudget: '$12K-$35K', potentialDealSize: 23500, reasoning: 'High-demand diagnostic tool' },
+      { equipment: 'EMR Software & Hardware', estimatedBudget: '$5K-$15K', potentialDealSize: 10000, reasoning: 'Required for regulatory compliance' },
+      { equipment: 'Dental Chair & Equipment', estimatedBudget: '$10K-$30K', potentialDealSize: 20000, reasoning: 'Core equipment for dental practices' }
     ],
-    'Restaurant': [
-      { equipment: 'Commercial Kitchen Equipment', estimatedBudget: '$50K-$150K', potentialDealSize: 100000, reasoning: 'Complete kitchen setup or major equipment replacement' },
-      { equipment: 'POS System', estimatedBudget: '$3K-$15K', potentialDealSize: 8000, reasoning: 'Modern payment processing and inventory management' },
-      { equipment: 'Walk-in Cooler/Freezer', estimatedBudget: '$8K-$30K', potentialDealSize: 20000, reasoning: 'Essential for food storage and safety compliance' },
-      { equipment: 'Commercial Range & Oven', estimatedBudget: '$5K-$25K', potentialDealSize: 15000, reasoning: 'Core cooking equipment replacement or upgrade' },
-      { equipment: 'Dishwashing System', estimatedBudget: '$5K-$20K', potentialDealSize: 12000, reasoning: 'High-efficiency commercial dishwasher' },
-      { equipment: 'Bar Equipment Package', estimatedBudget: '$10K-$40K', potentialDealSize: 25000, reasoning: 'Complete bar setup or renovation' },
-      { equipment: 'Espresso Machine & Coffee Station', estimatedBudget: '$5K-$20K', potentialDealSize: 12000, reasoning: 'Premium coffee service equipment' },
-      { equipment: 'Food Truck Equipment', estimatedBudget: '$30K-$100K', potentialDealSize: 65000, reasoning: 'Mobile kitchen setup or conversion' },
-      { equipment: 'Bakery Oven & Equipment', estimatedBudget: '$20K-$80K', potentialDealSize: 50000, reasoning: 'Specialized baking equipment' },
-      { equipment: 'Outdoor Dining Setup', estimatedBudget: '$10K-$50K', potentialDealSize: 30000, reasoning: 'Patio furniture, heaters, and weather protection' }
+    'Restaurants & Food Service': [
+      { equipment: 'POS System', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Essential for order management and payments' },
+      { equipment: 'Commercial Oven', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Core cooking equipment for food production' },
+      { equipment: 'Refrigeration Unit', estimatedBudget: '$4K-$15K', potentialDealSize: 9500, reasoning: 'Critical for food safety and storage' },
+      { equipment: 'Food Prep Equipment', estimatedBudget: '$2K-$8K', potentialDealSize: 5000, reasoning: 'Improves efficiency and food quality' },
+      { equipment: 'Espresso Machine', estimatedBudget: '$5K-$20K', potentialDealSize: 12500, reasoning: 'High-margin beverage equipment' }
     ],
-    'Technology': [
-      { equipment: 'Server Infrastructure', estimatedBudget: '$20K-$100K', potentialDealSize: 60000, reasoning: 'Data center or server room upgrade' },
-      { equipment: 'Cybersecurity Suite', estimatedBudget: '$10K-$50K', potentialDealSize: 30000, reasoning: 'Comprehensive security solution implementation' },
-      { equipment: 'Workstation Refresh', estimatedBudget: '$30K-$150K', potentialDealSize: 90000, reasoning: 'Company-wide computer and equipment upgrade' },
-      { equipment: 'Network Infrastructure', estimatedBudget: '$15K-$75K', potentialDealSize: 45000, reasoning: 'Switches, routers, and wireless systems' },
-      { equipment: 'Cloud Migration Services', estimatedBudget: '$20K-$100K', potentialDealSize: 60000, reasoning: 'Infrastructure modernization project' },
-      { equipment: 'Video Conferencing System', estimatedBudget: '$5K-$30K', potentialDealSize: 17000, reasoning: 'Professional meeting room setup' },
-      { equipment: 'Software Licenses', estimatedBudget: '$10K-$80K', potentialDealSize: 45000, reasoning: 'Enterprise software suite implementation' },
-      { equipment: '3D Printing Equipment', estimatedBudget: '$10K-$50K', potentialDealSize: 30000, reasoning: 'Prototyping and production capabilities' },
-      { equipment: 'Testing & QA Lab', estimatedBudget: '$15K-$60K', potentialDealSize: 37000, reasoning: 'Quality assurance infrastructure' },
-      { equipment: 'Backup & Disaster Recovery', estimatedBudget: '$10K-$50K', potentialDealSize: 30000, reasoning: 'Business continuity solution' }
+    'Retail & E-commerce': [
+      { equipment: 'POS & Payment System', estimatedBudget: '$2K-$8K', potentialDealSize: 5000, reasoning: 'Essential for transaction processing' },
+      { equipment: 'Security Camera System', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Critical for loss prevention' },
+      { equipment: 'Display Fixtures', estimatedBudget: '$4K-$15K', potentialDealSize: 9500, reasoning: 'Enhances product presentation and sales' },
+      { equipment: 'Inventory Scanners', estimatedBudget: '$2K-$6K', potentialDealSize: 4000, reasoning: 'Streamlines inventory management' },
+      { equipment: 'Digital Signage', estimatedBudget: '$5K-$18K', potentialDealSize: 11500, reasoning: 'Modern marketing and customer engagement' }
+    ],
+    'Fitness & Wellness': [
+      { equipment: 'Commercial Treadmills', estimatedBudget: '$5K-$15K', potentialDealSize: 10000, reasoning: 'Core cardio equipment for gyms' },
+      { equipment: 'Weight Training Equipment', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Essential for strength training programs' },
+      { equipment: 'Spa Equipment', estimatedBudget: '$6K-$20K', potentialDealSize: 13000, reasoning: 'Specialized equipment for wellness services' },
+      { equipment: 'Audio/Visual Systems', estimatedBudget: '$3K-$10K', potentialDealSize: 6500, reasoning: 'Enhances member experience' },
+      { equipment: 'Locker Systems', estimatedBudget: '$4K-$12K', potentialDealSize: 8000, reasoning: 'Essential facility infrastructure' }
+    ],
+    'Auto Repair & Service': [
+      { equipment: 'Diagnostic Equipment', estimatedBudget: '$8K-$25K', potentialDealSize: 16500, reasoning: 'Critical for modern vehicle diagnostics' },
+      { equipment: 'Vehicle Lifts & Hoists', estimatedBudget: '$10K-$35K', potentialDealSize: 22500, reasoning: 'Essential for vehicle service access' },
+      { equipment: 'Air Compressor Systems', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Powers pneumatic tools and equipment' },
+      { equipment: 'Tire Changing Equipment', estimatedBudget: '$5K-$15K', potentialDealSize: 10000, reasoning: 'High-volume service equipment' },
+      { equipment: 'Paint Booth Systems', estimatedBudget: '$15K-$40K', potentialDealSize: 27500, reasoning: 'Premium service capability equipment' }
+    ],
+    'Professional Services': [
+      { equipment: 'Office Technology', estimatedBudget: '$3K-$12K', potentialDealSize: 7500, reasoning: 'Essential for modern office operations' },
+      { equipment: 'Conference Room Equipment', estimatedBudget: '$5K-$18K', potentialDealSize: 11500, reasoning: 'Professional client presentation needs' },
+      { equipment: 'Security Systems', estimatedBudget: '$4K-$15K', potentialDealSize: 9500, reasoning: 'Protects confidential client information' },
+      { equipment: 'Document Management', estimatedBudget: '$2K-$8K', potentialDealSize: 5000, reasoning: 'Improves efficiency and compliance' },
+      { equipment: 'Communication Systems', estimatedBudget: '$3K-$10K', potentialDealSize: 6500, reasoning: 'Essential for client communication' }
     ]
   };
 
-  async enrichProspects(prospects: any[], targetIndustry: string): Promise<any[]> {
-    console.log(`🔄 Enriching ${prospects.length} prospects with Apollo data...`);
+  async enrichProspects(prospects: any[], industry: string): Promise<any[]> {
+    const enrichedProspects = [];
     
-    const enrichedProspects = await Promise.all(
-      prospects.map(async (prospect) => {
-        try {
-          console.log(`🔍 Enriching: ${prospect.name}`);
-          
-          // Extract domain from website or create from name
-          let domain = '';
-          if (prospect.website) {
-            domain = this.extractDomain(prospect.website);
-          }
-          
-          // Get equipment suggestions based on target industry
-          const suggestedEquipment = this.getEquipmentSuggestions(targetIndustry);
-          
-          // Enrich with Apollo data
-          const apolloData = await this.enrichWithApollo(
-            prospect.name, 
-            domain, 
-            prospect.vicinity
-          );
-          
-          // Calculate micro ticket score
-          const microTicketScore = this.calculateMicroTicketScore(
-            apolloData?.employees || 0,
-            targetIndustry
-          );
-          
-          return {
-            ...prospect,
-            targetIndustry,
-            suggestedEquipment,
-            employees: apolloData?.employees || null,
-            employeesRange: apolloData?.employeesRange || null,
-            revenue: apolloData?.revenue || null,
-            industry: apolloData?.industry || targetIndustry,
-            apolloId: apolloData?.id || null,
-            contacts: apolloData?.contacts || [],
-            microTicketScore,
-            enrichedAt: new Date().toISOString()
-          };
-        } catch (error) {
-          console.error(`❌ Error enriching ${prospect.name}:`, error);
-          // Return prospect with equipment suggestions even if Apollo fails
-          return {
-            ...prospect,
-            targetIndustry,
-            suggestedEquipment: this.getEquipmentSuggestions(targetIndustry),
-            microTicketScore: { score: 0, factors: ['Unable to calculate - missing data'] },
-            enrichedAt: new Date().toISOString()
-          };
-        }
-      })
-    );
+    for (const prospect of prospects) {
+      try {
+        // Add mock enriched data temporarily
+        const enrichedData = await this.enrichWithMockData(prospect.name, prospect.website || '', prospect.vicinity || '');
+        
+        const enrichedProspect = {
+          ...prospect,
+          ...enrichedData,
+          microTicketScore: this.calculateMicroTicketScore(enrichedData),
+          industry: this.identifyIndustry(prospect.name, prospect.types || [])
+        };
+        
+        enrichedProspects.push(enrichedProspect);
+      } catch (error) {
+        console.error('Error enriching prospect:', error);
+        // Return original prospect if enrichment fails
+        enrichedProspects.push({
+          ...prospect,
+          microTicketScore: 0,
+          industry: industry
+        });
+      }
+    }
     
     return enrichedProspects;
   }
 
-  private extractDomain(url: string): string {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.hostname.replace('www.', '');
-    } catch {
-      return url.replace('www.', '').replace(/^https?:\/\//, '');
-    }
-  }
-
-   getEquipmentSuggestions(industry: string): EquipmentSuggestion[] {
-    const suggestions = this.equipmentByIndustry[industry] || [];
-    // Return top 3 suggestions with highest potential deal size
-    return suggestions
-      .sort((a, b) => b.potentialDealSize - a.potentialDealSize)
-      .slice(0, 3);
-  }
-
-  private async enrichWithApollo(name: string, domain: string, location: string): Promise<any> {
-    try {
-      // Use your Vercel function instead of direct Apollo API
-      const response = await axios.post('/api/apollo', {
-        endpoint: 'organizations/search',
-        data: {
-          q_organization_name: name,
-          q_organization_domain: domain,
-          q_organization_locations: location,
-          page: 1,
-          per_page: 1
-        }
-      }) as any;
-
-      if (response.data.organizations && response.data.organizations.length > 0) {
-        const org = response.data.organizations[0];
-        
-        // Get contacts
-        const contacts = await this.getApolloContacts(org.id);
-        
-        return {
-          id: org.id,
-          name: org.name,
-          domain: org.domain,
-          employees: org.estimated_num_employees,
-          employeesRange: org.employee_count_range,
-          revenue: org.estimated_annual_revenue,
-          industry: org.industry,
-          contacts
-        };
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Apollo API error:', error);
-      return null;
-    }
-  }
-
-  private async getApolloContacts(organizationId: string): Promise<Contact[]> {
-    try {
-      const response = await axios.post('/api/apollo', {
-        endpoint: 'people/search',
-        data: {
-          q_organization_ids: [organizationId],
-          contact_email_status: ['verified', 'guessed', 'unavailable'],
-          page: 1,
-          per_page: 5
-        }
-      }) as any;
-
-      if (response.data.people) {
-        return response.data.people.map((person: any) => ({
-          name: person.name,
-          title: person.title,
-          email: person.email,
-          phone: person.phone_numbers?.[0]?.sanitized_number
-        }));
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('Error fetching contacts:', error);
-      return [];
-    }
-  }
-
-  private calculateMicroTicketScore(employees: number, industry: string): any {
-    const factors: string[] = [];
-    let score = 0;
-
-    // Base score from employee count
-    if (employees > 0) {
-      if (employees <= 10) {
-        score += 4;
-        factors.push('Small team (high micro ticket fit)');
-      } else if (employees <= 50) {
-        score += 3;
-        factors.push('Medium team (good micro ticket fit)');
-      } else if (employees <= 200) {
-        score += 2;
-        factors.push('Large team (moderate micro ticket fit)');
-      } else {
-        score += 1;
-        factors.push('Enterprise (lower micro ticket fit)');
-      }
-    }
-
-    // Industry bonus
-    const highMicroTicketIndustries = ['Medical & Healthcare', 'Restaurant', 'Retail', 'Fitness & Wellness'];
-    if (highMicroTicketIndustries.includes(industry)) {
-      score += 1;
-      factors.push(`${industry} typically has frequent equipment needs`);
-    }
-
+  private async enrichWithMockData(name: string, domain: string, location: string): Promise<any> {
+    // Temporary mock data to get the app working
+    const mockEmployeeCount = Math.floor(Math.random() * 50) + 5;
+    const mockRevenue = ['$100K - $500K', '$500K - $1M', '$1M - $5M'][Math.floor(Math.random() * 3)];
+    
     return {
-      score: Math.min(score, 5), // Cap at 5
-      factors
+      employeeCount: mockEmployeeCount,
+      revenue: mockRevenue,
+      estimatedAnnualRevenue: mockEmployeeCount * 75000,
+      employeeRange: mockEmployeeCount < 10 ? '1-10' : mockEmployeeCount < 25 ? '11-25' : '26-50',
+      industry: 'Service Business',
+      contacts: [
+        {
+          name: 'Business Owner',
+          title: 'Owner/Manager',
+          email: domain ? `contact@${domain.replace('https://', '').replace('http://', '')}` : null,
+          phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`
+        }
+      ]
     };
   }
 
-  
-
-  detectIndustry(businessName: string, types: string[]): string {
-    const nameAndTypes = `${businessName} ${types.join(' ')}`.toLowerCase();
+  private identifyIndustry(businessName: string, googleTypes: string[]): string {
+    const name = businessName.toLowerCase();
+    const types = googleTypes.join(' ').toLowerCase();
     
     for (const [industry, keywords] of Object.entries(this.industryKeywords)) {
-      if (keywords.some(keyword => nameAndTypes.includes(keyword))) {
-        return industry;
+      for (const keyword of keywords) {
+        if (name.includes(keyword) || types.includes(keyword)) {
+          return industry;
+        }
       }
     }
     
-    return 'Other';
+    return 'General Business';
+  }
+
+  getEquipmentSuggestions(industry: string): string[] {
+    const suggestions = this.equipmentByIndustry[industry] || this.equipmentByIndustry['Professional Services'] || [];
+    return suggestions.slice(0, 3).map(item => item.equipment);
+  }
+
+  private calculateMicroTicketScore(enrichedData: any): number {
+    let score = 0;
+    
+    // Employee count scoring (more employees = higher potential)
+    const employeeCount = enrichedData.employeeCount || 0;
+    if (employeeCount >= 10) score += 3;
+    else if (employeeCount >= 5) score += 2;
+    else if (employeeCount >= 1) score += 1;
+    
+    // Revenue scoring
+    if (enrichedData.estimatedAnnualRevenue) {
+      if (enrichedData.estimatedAnnualRevenue >= 1000000) score += 3;
+      else if (enrichedData.estimatedAnnualRevenue >= 500000) score += 2;
+      else if (enrichedData.estimatedAnnualRevenue >= 100000) score += 1;
+    }
+    
+    // Contact availability
+    if (enrichedData.contacts && enrichedData.contacts.length > 0) {
+      score += 2;
+      if (enrichedData.contacts[0].email) score += 1;
+      if (enrichedData.contacts[0].phone) score += 1;
+    }
+    
+    return Math.min(score, 10); // Cap at 10
   }
 }
 
