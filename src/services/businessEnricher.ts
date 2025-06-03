@@ -66,13 +66,13 @@ class BusinessEnricher {
     ]
   };
 
-  async enrichProspects(prospects: any[], industry: string): Promise<any[]> {
+  private async enrichWithMockData(domain: string): Promise<any> {
     const enrichedProspects = [];
     
     for (const prospect of prospects) {
       try {
         // Add mock enriched data temporarily
-        const enrichedData = await this.enrichWithMockData(prospect.name, prospect.website || '', prospect.vicinity || '');
+        const enrichedData = await this.enrichWithMockData(prospect.website || '')
         
         const enrichedProspect = {
           ...prospect,
