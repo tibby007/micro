@@ -35,12 +35,12 @@ class GooglePlacesService {
     }
 
     this.isScriptLoading = true;
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
 
     if (!apiKey) {
-      console.error('❌ VITE_GOOGLE_MAPS_API_KEY is not set in environment variables!');
+      console.error('❌ VITE_GOOGLE_PLACES_API_KEY is not set in environment variables!');
       this.isScriptLoading = false; // Reset loading state
-      throw new Error('Google Maps API Key is not configured.');
+      throw new Error('Google Places API Key is not configured.');
     }
     console.log('🔑 Using Google Maps API Key for script load.');
 
@@ -53,7 +53,7 @@ class GooglePlacesService {
         // A better check:
         const checkGoogle = () => {
             if (window.google && window.google.maps && window.google.maps.places) {
-                console.log('✅ Google Maps API became available after script tag was found.');
+                console.log('✅ Google Places API became available after script tag was found.');
                 this.isScriptLoading = false;
                 resolve(true);
             } else {
@@ -64,7 +64,7 @@ class GooglePlacesService {
         return;
       }
 
-      console.log('📥 Loading Google Maps script...');
+      console.log('📥 Loading Google Places script...');
       const script = document.createElement('script');
       script.id = 'google-maps-places-script'; // Add an ID to prevent multiple appends
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`; // Added loading=async
@@ -77,7 +77,7 @@ class GooglePlacesService {
         resolve(true);
       };
       script.onerror = (error) => {
-        console.error('❌ Failed to load Google Maps script:', error);
+        console.error('❌ Failed to load Google Places script:', error);
         document.head.removeChild(script); // Clean up failed script tag
         this.isScriptLoading = false;
         this.scriptLoadPromise = null; // Reset promise so it can be tried again
