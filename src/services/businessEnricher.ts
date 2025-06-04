@@ -71,60 +71,73 @@ class BusinessEnricher {
 
   constructor() {}
 
-  public async enrichProspects(prospectsList: any[]): Promise<any[]> {
-    console.log("BusinessEnricher: Starting to enrich", prospectsList.length, "prospects.");
+  public async enrichProspects(initialProspects: any[]): Promise<any[]> { // `initialProspects` are from GooglePlacesService.searchBusinesses
+    console.log("BusinessEnricher: Starting to enrich", initialProspects.length, "initial prospects.");
     const allEnrichedProspects = [];
 
-    for (const prospect of prospectsList) {
-      let enrichedData: EnrichedProspectData = {};
-      let determinedIndustry = 'General Business'; 
+    for (const initialProspect of initialProspects) {
+        // initialProspect should at least have 'id' (place_id) and 'name'
+        let prospectWithDetails: any = { ...initialProspect }; // Start with summary data from textSearch
+        let enrichedData: EnrichedProspectData = {};
+        let determinedIndustry = 'General Business';
+        let finalIndustryForDisplay = 'General Business';
 
-      try {
-        // Try to get a preliminary industry from Google data if available
-        let initialIndustry = prospect.industry || ''; // Assuming GooglePlacesService might add an 'industry' field based on primary type
-        if (!initialIndustry && prospect.types && prospect.types.length > 0) {
-            // Attempt to map a primary Google type to one of our known industries
-            initialIndustry = this.mapGoogleTypeToIndustry(prospect.types);
+        try {
+            // Step 1: Get detailed Place Info from Google using place_id
+            if (prospectWithDetails.id) { 
+                console.log(`BusinessEnricher: Getting Google Place Details for ID: ${prospectWithDetails.id}, Name: ${prospectWithDetails.name}`);
+                try {
+                    // Assuming GooglePlacesService is imported and is a singleton instance
+                    const details = await GooglePlacesService.getBusinessDetails(prospectWithDetails.id);
+                    prospectWithDetails = { ...prospectWithDetails, ...details }; // Merge details
+                    console.log(`BusinessEnricher: Details for ${prospectWithDetails.name}: Website - ${prospectWithDetails.website}, Phone - ${prospectWithDetails.phone}`);
+                } catch (detailsError) {
+                    console.error(`BusinessEnricher: Error getting Google Place Details for ${prospectWithDetails.name}:`, detailsError);
+                }
+            }
+
+            // Step 2: Identify Industry based on potentially more complete data
+            let googleBasedIndustry = this.mapGoogleTypeToIndustry(prospectWithDetails.types || []);
+            determinedIndustry = this.identifyIndustry(prospectWithDetails.name || '', prospectWithDetails.types || []);
+            console.log(`BusinessEnricher: Prospect "${prospectWithDetails.name}", GoogleTypeMapped Industry: "${googleBasedIndustry}", Keywords Identified Industry: "${determinedIndustry}"`);
+            
+            // Step 3: Apollo Enrichment (using prospectWithDetails.website, which should now be more reliable)
+            console.log(`BusinessEnricher: Attempting to fetch REAL data for domain: "${prospectWithDetails.website || 'N/A'}"`);
+            enrichedData = await this._fetchDataFromApi(prospectWithDetails.website || ''); 
+            
+            // Determine final industry to use
+            if (enrichedData.industry && enrichedData.industry !== 'General Business') {
+                finalIndustryForDisplay = enrichedData.industry;
+            } else if (determinedIndustry && determinedIndustry !== 'General Business') { 
+                finalIndustryForDisplay = determinedIndustry;
+            } else if (googleBasedIndustry && googleBasedIndustry !== 'General Business') {
+                finalIndustryForDisplay = googleBasedIndustry;
+            }
+            enrichedData.industry = finalIndustryForDisplay; // Ensure enrichedData has the best industry
+
+            console.log(`BusinessEnricher: Data after enrichment/API for "${prospectWithDetails.name}":`, JSON.stringify(enrichedData, null, 2));
+
+            const finalProspect = {
+              ...prospectWithDetails, // Contains original Google data + details
+              ...enrichedData,        // Contains Apollo data + final industry
+              microTicketScore: this.calculateMicroTicketScore(enrichedData),
+              // 'industry' property is now set within enrichedData with the best available one
+            };
+            allEnrichedProspects.push(finalProspect);
+
+        } catch (error) {
+            console.error(`BusinessEnricher: Error enriching prospect ${prospectWithDetails.name || 'N/A'}:`, error);
+            allEnrichedProspects.push({
+              ...prospectWithDetails, // Use data obtained up to the point of error
+              microTicketScore: 0,
+              industry: determinedIndustry || 'General Business', // Fallback industry
+              enrichmentError: (error as Error).message || 'Unknown enrichment error',
+            });
         }
-        
-        determinedIndustry = this.identifyIndustry(prospect.name || '', prospect.types || []);
-        console.log(`BusinessEnricher: Prospect "${prospect.name}", Google-based Industry Attempt: "${initialIndustry}", Keywords Identified Industry: "${determinedIndustry}"`);
-        
-        console.log(`BusinessEnricher: Attempting to fetch REAL data for domain: "${prospect.website || 'N/A'}"`);
-        enrichedData = await this._fetchDataFromApi(prospect.website || ''); 
-        
-        // Logic to determine final industry: Apollo > Keyword-Identified > Google-based > Fallback
-        if (enrichedData.industry) {
-            // Apollo provided an industry, prefer this.
-        } else if (determinedIndustry && determinedIndustry !== 'General Business') { 
-            enrichedData.industry = determinedIndustry;
-        } else if (initialIndustry && initialIndustry !== 'General Business') {
-            enrichedData.industry = initialIndustry;
-        } else { 
-            enrichedData.industry = 'General Business';
-        }
-        console.log(`BusinessEnricher: Data after enrichment/API for "${prospect.name}":`, JSON.stringify(enrichedData, null, 2));
-
-        const finalProspect = {
-          ...prospect, 
-          ...enrichedData, 
-          microTicketScore: this.calculateMicroTicketScore(enrichedData),
-        };
-        allEnrichedProspects.push(finalProspect);
-
-      } catch (error) {
-        console.error(`BusinessEnricher: Error enriching prospect ${prospect.name || 'N/A'}:`, error);
-        allEnrichedProspects.push({
-          ...prospect,
-          microTicketScore: 0,
-          industry: determinedIndustry, // Fallback to keyword-identified on error
-          enrichmentError: (error as Error).message || 'Unknown enrichment error',
-        });
-      }
     }
     console.log("BusinessEnricher: Finished enriching prospects. Total enriched:", allEnrichedProspects.length);
     return allEnrichedProspects;
-  }
+}
 
   private async _fetchDataFromApi(domain: string): Promise<EnrichedProspectData> {
     if (!domain) {
