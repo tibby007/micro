@@ -116,6 +116,7 @@ const ProtectedApp = () => {
     try {
       console.log('ProtectedApp: Starting Google Places search for:', industry, 'in', city);
       const googleResults = await GooglePlacesService.searchBusinesses(city, industry);
+      console.log('ProtectedApp: Using MOCK Google Places results:', JSON.stringify(googleResults, null, 2));
       console.log('ProtectedApp: Google Places results:', googleResults);
 
       if (googleResults && googleResults.length > 0) {
