@@ -1,5 +1,20 @@
 // /api/stripe-webhook.ts
+console.log('ENV STRIPE_SECRET_KEY', !!process.env.STRIPE_SECRET_KEY);
+console.log('ENV STRIPE_WEBHOOK_SECRET', !!process.env.STRIPE_WEBHOOK_SECRET);
+console.log('ENV FIREBASE_SERVICE_ACCOUNT', !!process.env.FIREBASE_SERVICE_ACCOUNT);
+console.log('ENV FIREBASE_DATABASE_URL', !!process.env.FIREBASE_DATABASE_URL);
 
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string)),
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
+    });
+  }
+  console.log('Firebase initialized');
+} catch (err) {
+  console.error('Firebase init error:', err);
+}
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { buffer } from 'micro';
 import Stripe from 'stripe';
