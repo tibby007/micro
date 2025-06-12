@@ -1,6 +1,6 @@
 // src/services/businessEnricher.ts
 
-import googlePlacesService from './GooglePlacesService'; 
+import GooglePlacesService from './GooglePlacesService';
 import type { Business } from './GooglePlacesService'; 
 
 export interface EnrichedProspectData {
@@ -82,7 +82,7 @@ class BusinessEnricher {
             if (prospectWithDetails.id && prospectWithDetails.id !== 'NO_PLACE_ID' && !prospectWithDetails.enrichmentError) { 
                 console.log(`BusinessEnricher: Getting Google Place Details for ID: ${prospectWithDetails.id}, Name: ${prospectWithDetails.name}`);
                 try {
-                    const details = await googlePlacesService.getBusinessDetails(prospectWithDetails.id);
+                    const details = await GooglePlacesService.getBusinessDetails(prospectWithDetails.id);
                     prospectWithDetails = { 
                         ...initialProspect, 
                         name: details.name || initialProspect.name,
@@ -92,8 +92,8 @@ class BusinessEnricher {
                         website: details.website || initialProspect.website,
                         types: details.types && details.types.length > 0 ? details.types : initialProspect.types,
                         url: details.url || initialProspect.url,
-                        enrichmentError: details.enrichmentError 
-                    };
+                        enrichmentError: details.enrichmentError, // <-- This is correct for an object
+                      };                      
                     console.log(`BusinessEnricher: Details for ${prospectWithDetails.name || 'N/A'}: Website - ${prospectWithDetails.website}, Phone - ${prospectWithDetails.phone}`);
                     if (prospectWithDetails.enrichmentError) {
                         console.warn(`BusinessEnricher: Google Details fetch for ${prospectWithDetails.name || 'N/A'} had an error: ${prospectWithDetails.enrichmentError}`);
