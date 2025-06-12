@@ -236,6 +236,8 @@ class GooglePlacesService {
         id: placeId,
         name: "Details Error",
         enrichmentError: (error as Error).message
+      } as Partial<Business>;
+      
       };
     }
   }
