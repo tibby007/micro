@@ -1,35 +1,32 @@
 // /api/stripe-webhook.ts
+
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { buffer } from 'micro';
+import Stripe from 'stripe';
+import admin from 'firebase-admin';
+
+// Debug your env vars (leave these here for now)
 console.log('ENV STRIPE_SECRET_KEY', !!process.env.STRIPE_SECRET_KEY);
 console.log('ENV STRIPE_WEBHOOK_SECRET', !!process.env.STRIPE_WEBHOOK_SECRET);
 console.log('ENV FIREBASE_SERVICE_ACCOUNT', !!process.env.FIREBASE_SERVICE_ACCOUNT);
 console.log('ENV FIREBASE_DATABASE_URL', !!process.env.FIREBASE_DATABASE_URL);
-
-try {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string)),
-      databaseURL: process.env.FIREBASE_DATABASE_URL,
-    });
-  }
-  console.log('Firebase initialized');
-} catch (err) {
-  console.error('Firebase init error:', err);
-}
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { buffer } from 'micro';
-import Stripe from 'stripe';
-import * as admin from 'firebase-admin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2022-11-15',
 });
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
+// Initialize Firebase Admin *AFTER* import
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string)),
-    databaseURL: process.env.FIREBASE_DATABASE_URL,
-  });
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string)),
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
+    });
+    console.log('Firebase initialized');
+  } catch (err) {
+    console.error('Firebase init error:', err);
+  }
 }
 
 export const config = {
@@ -54,18 +51,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event types you care about
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
-
-      // Get the email you used for registration
       const email = session.customer_details?.email || session.metadata?.email;
 
       if (email && customerId && subscriptionId) {
-        // Find user in Firestore and update with Stripe info
         const userRef = admin.firestore().collection('users').where('email', '==', email).limit(1);
         const snapshot = await userRef.get();
         if (!snapshot.empty) {
@@ -74,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId,
             subscriptionStatus: 'active',
-            trialExpiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 24 * 60 * 60 * 1000), // If you want to set a trial, adjust as needed
+            trialExpiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 24 * 60 * 60 * 1000),
           });
           console.log(`✅ Updated user ${email} with Stripe subscription info`);
         } else {
@@ -83,8 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       break;
     }
-
-    // Add more event types here if needed (subscription updates, cancellations, etc)
     default:
       console.log(`Unhandled event type ${event.type}`);
   }
