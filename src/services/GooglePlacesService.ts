@@ -15,6 +15,8 @@ export interface Business {
   website?: string;
   types?: string[];
   url?: string; // Google Maps URL for the place
+  enrichmentError?: string;
+  industry?: string;
   // Add any other specific fields you want to ensure are on your Business object
 }
 
@@ -185,26 +187,26 @@ class GooglePlacesService {
       console.warn("GooglePlacesService: placeId is empty for getBusinessDetails, returning empty object.");
       return {};
     }
-
+  
     try {
       await this.loadGoogleMapsScript();
-
+  
       if (!(window.google && window.google.maps && window.google.maps.Map && window.google.maps.places && window.google.maps.places.PlacesService)) {
         console.error("❌ GooglePlacesService: Critical Google Maps API components not available before getBusinessDetails.");
         throw new Error("Google Maps API components not ready for details request.");
       }
-
+  
       const mapDiv = document.createElement('div');
       const map = new window.google.maps.Map(mapDiv);
       const service = new window.google.maps.places.PlacesService(map);
-
+  
       const request: google.maps.places.PlaceDetailsRequest = {
         placeId: placeId,
         fields: ['place_id', 'name', 'website', 'formatted_phone_number', 'international_phone_number', 'formatted_address', 'vicinity', 'rating', 'types', 'url', 'business_status']
       };
-
+  
       console.log('🔎 GooglePlacesService: Requesting Place Details:', request);
-
+  
       return new Promise<Partial<Business>>((resolve, reject) => {
         service.getDetails(request, (place: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
           console.log(`📍 GooglePlacesService: Place Details API Status for ${placeId}:`, status);
@@ -218,23 +220,23 @@ class GooglePlacesService {
               website: place.website || undefined,
               types: place.types || [],
               url: place.url || undefined,
-              // business_status: place.business_status, // Example of another field
             };
             console.log(`✅ GooglePlacesService: Details received for ${place.name || 'placeId ' + placeId}:`, JSON.stringify(details, null, 2));
             resolve(details);
           } else {
             console.error(`❌ GooglePlacesService: Place Details request failed for ${placeId} with status:`, status);
-            resolve({ id: placeId, name: `Details Fetch Failed (${status})` }); // Resolve with minimal data on failure
+            reject(new Error(`Place Details request failed for ${placeId} with status: ${status}`));
           }
         });
       });
+  
     } catch (error) {
       console.error(`💥 GooglePlacesService: Error in getBusinessDetails for ${placeId}:`, error);
-      // In case of a catastrophic error (e.g., API not loaded), resolve with an error state or rethrow
-      // For now, resolving with an object indicating failure is safer for the calling loop.
-      return { id: placeId, name: "Details Error", enrichmentError: (error as Error).message };
+      return {
+        id: placeId,
+        name: "Details Error",
+        enrichmentError: (error as Error).message
+      };
     }
   }
-}
-
-export default new GooglePlacesService();
+  
