@@ -1,6 +1,7 @@
 // /api/stripe-webhook.ts
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { buffer } from 'micro';
 import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
 
@@ -16,82 +17,61 @@ if (!admin.apps.length) {
   });
 }
 
-// Helper function to get raw body without micro
-async function getRawBody(req: VercelRequest): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    
-    req.on('data', (chunk: Buffer) => {
-      chunks.push(chunk);
-    });
-    
-    req.on('end', () => {
-      resolve(Buffer.concat(chunks));
-    });
-    
-    req.on('error', (err) => {
-      reject(err);
-    });
-  });
-}
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Disable body parsing for webhooks
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).send('Method Not Allowed');
   }
 
   let event: Stripe.Event;
-  
   try {
-    const rawBody = await getRawBody(req);
+    const rawBody = await buffer(req);
     const sig = req.headers['stripe-signature'] as string;
-    
-    if (!sig) {
-      console.error('❌ No stripe signature found');
-      return res.status(400).send('No stripe signature found');
-    }
-    
     event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
   } catch (err: any) {
     console.error('❌ Webhook signature verification failed.', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const customerId = session.customer as string;
-        const subscriptionId = session.subscription as string;
-        const email = session.customer_details?.email || session.metadata?.email;
+  // Handle the event types you care about
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const customerId = session.customer as string;
+      const subscriptionId = session.subscription as string;
 
-        if (email && customerId && subscriptionId) {
-          const userRef = admin.firestore().collection('users').where('email', '==', email).limit(1);
-          const snapshot = await userRef.get();
-          if (!snapshot.empty) {
-            const userDoc = snapshot.docs[0];
-            await userDoc.ref.update({
-              stripeCustomerId: customerId,
-              stripeSubscriptionId: subscriptionId,
-              subscriptionStatus: 'active',
-              trialExpiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 24 * 60 * 60 * 1000),
-            });
-            console.log(`✅ Updated user ${email} with Stripe subscription info`);
-          } else {
-            console.warn(`⚠️ No user found for email ${email}`);
-          }
+      // Get the email you used for registration
+      const email = session.customer_details?.email || session.metadata?.email;
+
+      if (email && customerId && subscriptionId) {
+        // Find user in Firestore and update with Stripe info
+        const userRef = admin.firestore().collection('users').where('email', '==', email).limit(1);
+        const snapshot = await userRef.get();
+        if (!snapshot.empty) {
+          const userDoc = snapshot.docs[0];
+          await userDoc.ref.update({
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId,
+            subscriptionStatus: 'active',
+            trialExpiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 24 * 60 * 60 * 1000), // If you want to set a trial, adjust as needed
+          });
+          console.log(`✅ Updated user ${email} with Stripe subscription info`);
+        } else {
+          console.warn(`⚠️ No user found for email ${email}`);
         }
-        break;
       }
-
-      default:
-        console.log(`Unhandled event type ${event.type}`);
+      break;
     }
-  } catch (error: any) {
-    console.error('❌ Error processing webhook:', error.message);
-    return res.status(500).json({ error: 'Internal server error' });
+
+    // Add more event types here if needed (subscription updates, cancellations, etc)
+    default:
+      console.log(`Unhandled event type ${event.type}`);
   }
 
   res.status(200).json({ received: true });
