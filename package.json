@@ -13,10 +13,12 @@
     "@types/node": "^22.15.29",
     "axios": "^1.9.0",
     "firebase": "^11.8.1",
+    "firebase-admin": "^13.4.0",
     "micro": "^10.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.1"
+    "react-router-dom": "^7.6.1",
+    "stripe": "^18.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
