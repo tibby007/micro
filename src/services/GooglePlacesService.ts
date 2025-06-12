@@ -180,7 +180,6 @@ class GooglePlacesService {
       throw error;
     }
   }
-
   async getBusinessDetails(placeId: string): Promise<Partial<Business>> {
     console.log(`🔍 GooglePlacesService: getBusinessDetails called for placeId: ${placeId}`);
     if (!placeId) {
@@ -202,12 +201,24 @@ class GooglePlacesService {
   
       const request: google.maps.places.PlaceDetailsRequest = {
         placeId: placeId,
-        fields: ['place_id', 'name', 'website', 'formatted_phone_number', 'international_phone_number', 'formatted_address', 'vicinity', 'rating', 'types', 'url', 'business_status']
+        fields: [
+          'place_id',
+          'name',
+          'website',
+          'formatted_phone_number',
+          'international_phone_number',
+          'formatted_address',
+          'vicinity',
+          'rating',
+          'types',
+          'url',
+          'business_status'
+        ]
       };
   
       console.log('🔎 GooglePlacesService: Requesting Place Details:', request);
   
-      return new Promise<Partial<Business>>((resolve, reject) => {
+      return new Promise<Partial<Business>>((resolve) => {
         service.getDetails(request, (place: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
           console.log(`📍 GooglePlacesService: Place Details API Status for ${placeId}:`, status);
           if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
@@ -225,7 +236,6 @@ class GooglePlacesService {
             resolve(details);
           } else {
             console.error(`❌ GooglePlacesService: Place Details request failed for ${placeId} with status:`, status);
-            // FIX: remove reject if unused to avoid TS6133
             resolve({
               id: placeId,
               name: "Details Unavailable",
@@ -243,5 +253,6 @@ class GooglePlacesService {
         enrichmentError: (error as Error).message
       } as Partial<Business>;
     }
-  }
-  
+  } // ← this closes the class
+
+  export default new GooglePlacesService();
