@@ -57,7 +57,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (userDoc.exists()) {
           profile = userDoc.data() as AppUserProfile;
+          
+          // 🔍 DEBUG: Log what's actually in Firestore
+          console.log("🔍 User profile from Firestore:", {
+            email: profile.email,
+            subscriptionStatus: profile.subscriptionStatus,
+            subscriptionPlan: profile.subscriptionPlan,
+            trialExpiresAt: profile.trialExpiresAt,
+            stripeCustomerId: profile.stripeCustomerId,
+            stripeSubscriptionId: profile.stripeSubscriptionId,
+            trialExpiryDate: new Date(profile.trialExpiresAt),
+            currentDate: new Date(),
+            trialIsActive: new Date(profile.trialExpiresAt) > new Date()
+          });
+          
         } else {
+          console.log("⚠️ No user document found in Firestore, creating new profile");
           const brokerInfoString = localStorage.getItem("brokerInfo");
           const brokerInfo = brokerInfoString ? JSON.parse(brokerInfoString) : {};
           const newTrialExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
@@ -83,7 +98,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const trialExpiry = new Date(profile.trialExpiresAt);
         const hasActiveTrial = profile.subscriptionStatus === "trial" && trialExpiry > new Date();
         const hasActiveSubscription = profile.subscriptionStatus === "active";
-        setShowPaywall(!(hasActiveSubscription || hasActiveTrial));
+        const shouldShowPaywall = !(hasActiveSubscription || hasActiveTrial);
+        
+        // 💳 DEBUG: Log the paywall decision logic
+        console.log("💳 Paywall logic:", {
+          subscriptionStatus: profile.subscriptionStatus,
+          trialExpiry: trialExpiry,
+          hasActiveTrial,
+          hasActiveSubscription,
+          shouldShowPaywall,
+          hasStripeCustomerId: !!profile.stripeCustomerId,
+          hasStripeSubscriptionId: !!profile.stripeSubscriptionId
+        });
+        
+        setShowPaywall(shouldShowPaywall);
       } else {
         setUserProfile(null);
         localStorage.removeItem("brokerInfo");
