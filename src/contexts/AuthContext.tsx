@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, sendSignInLinkToEmail } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, limit, getDocs, deleteDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 type AppUserProfile = {
@@ -52,14 +52,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(fbUser);
 
       if (fbUser) {
-        const userDoc = await getDoc(doc(db, "users", fbUser.uid));
+        console.log('🔍 Looking for user with UID:', fbUser.uid, 'and email:', fbUser.email);
+        
+        // First try to find by UID (existing users)
+        let userDoc = await getDoc(doc(db, "users", fbUser.uid));
         let profile: AppUserProfile;
 
         if (userDoc.exists()) {
+          console.log('✅ Found user document by UID');
           profile = userDoc.data() as AppUserProfile;
           
           // 🔍 DEBUG: Log what's actually in Firestore
-          console.log("🔍 User profile from Firestore:", {
+          console.log("🔍 User profile from Firestore (via UID):", {
             email: profile.email,
             subscriptionStatus: profile.subscriptionStatus,
             subscriptionPlan: profile.subscriptionPlan,
@@ -72,25 +76,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           
         } else {
-          console.log("⚠️ No user document found in Firestore, creating new profile");
-          const brokerInfoString = localStorage.getItem("brokerInfo");
-          const brokerInfo = brokerInfoString ? JSON.parse(brokerInfoString) : {};
-          const newTrialExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+          console.log('❌ No document found by UID, trying email query...');
+          // If not found by UID, try querying by email (webhook-created users)
+          const emailQuery = query(collection(db, 'users'), where('email', '==', fbUser.email), limit(1));
+          const emailSnapshot = await getDocs(emailQuery);
+          
+          if (!emailSnapshot.empty) {
+            console.log('✅ Found user document by email query');
+            const emailDoc = emailSnapshot.docs[0];
+            profile = emailDoc.data() as AppUserProfile;
+            
+            // 🔍 DEBUG: Log what's actually in Firestore
+            console.log("🔍 User profile from Firestore (via email):", {
+              email: profile.email,
+              subscriptionStatus: profile.subscriptionStatus,
+              subscriptionPlan: profile.subscriptionPlan,
+              trialExpiresAt: profile.trialExpiresAt,
+              stripeCustomerId: profile.stripeCustomerId,
+              stripeSubscriptionId: profile.stripeSubscriptionId,
+              trialExpiryDate: new Date(profile.trialExpiresAt),
+              currentDate: new Date(),
+              trialIsActive: new Date(profile.trialExpiresAt) > new Date()
+            });
+            
+            // Copy the document to the correct UID-based location and delete the old one
+            await setDoc(doc(db, "users", fbUser.uid), profile);
+            await deleteDoc(emailDoc.ref);
+            console.log('✅ Migrated user document to correct UID location');
+            
+          } else {
+            console.log("⚠️ No user document found anywhere, creating new profile");
+            const brokerInfoString = localStorage.getItem("brokerInfo");
+            const brokerInfo = brokerInfoString ? JSON.parse(brokerInfoString) : {};
+            const newTrialExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
-          profile = {
-            uid: fbUser.uid,
-            email: fbUser.email,
-            brokerName: brokerInfo.brokerName || fbUser.displayName || "New Broker",
-            company: brokerInfo.company || "New Company",
-            phone: brokerInfo.phone || "(000) 000-0000",
-            subscriptionStatus: "trial",
-            subscriptionPlan: brokerInfo.plan || "starter",
-            trialExpiresAt: newTrialExpiresAt.toISOString(),
-            stripeCustomerId: null,
-            stripeSubscriptionId: null,
-            monthlySearchesUsed: 0,
-            monthlySearchLimit: 999,
-          };
+            profile = {
+              uid: fbUser.uid,
+              email: fbUser.email,
+              brokerName: brokerInfo.brokerName || fbUser.displayName || "New Broker",
+              company: brokerInfo.company || "New Company",
+              phone: brokerInfo.phone || "(000) 000-0000",
+              subscriptionStatus: "trial",
+              subscriptionPlan: brokerInfo.plan || "starter",
+              trialExpiresAt: newTrialExpiresAt.toISOString(),
+              stripeCustomerId: null,
+              stripeSubscriptionId: null,
+              monthlySearchesUsed: 0,
+              monthlySearchLimit: 999,
+            };
+          }
         }
 
         setUserProfile(profile);
