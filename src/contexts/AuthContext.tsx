@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, sendSignInLinkToEmail } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -96,15 +96,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // --- STUBS for backward compatibility ---
-  const logout = async () => {
-    await signOut(auth);
+  // --- REAL Magic Link Login (No Stubs) ---
+  const actionCodeSettings = {
+    url: window.location.origin + "/complete-signin", // You MUST have this route set up to finish sign-in!
+    handleCodeInApp: true,
   };
 
   const sendLoginLink = async (email: string) => {
-    // Using the email parameter to avoid TypeScript error
-    console.log(`Sending login link to: ${email}`);
-    setMessage(`Check your email! We sent a login link to ${email}`);
+    try {
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      window.localStorage.setItem("emailForSignIn", email);
+      setMessage(`Check your email! We sent a login link to ${email}`);
+    } catch (err: any) {
+      setMessage("Error sending login link: " + err.message);
+      console.error(err);
+    }
+  };
+
+  const logout = async () => {
+    await signOut(auth);
   };
 
   return (

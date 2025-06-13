@@ -4,11 +4,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/Auth/LoginPage';
 import ProtectedApp from './components/ProtectedApp';
+import CompleteSignInPage from "./pages/CompleteSignInPage";
 
 // Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-blue-900 flex items-center justify-center">
@@ -16,30 +17,28 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
       </div>
     );
   }
-  
   return user ? <>{children}</> : <Navigate to="/" />;
 };
 
-// Main routing component - INSIDE AuthProvider
+// All your routes go here
 function AppRoutes() {
-  const { user } = useAuth();
-  
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to="/app" /> : <LoginPage />} />
-      <Route 
-        path="/app" 
+      <Route path="/" element={<LoginPage />} />
+      <Route path="/complete-signin" element={<CompleteSignInPage />} />
+      <Route
+        path="/app/*"
         element={
           <ProtectedRoute>
             <ProtectedApp />
           </ProtectedRoute>
-        } 
+        }
       />
+      {/* Add more routes here as needed */}
     </Routes>
   );
 }
 
-// Main App component
 function App() {
   return (
     <AuthProvider>
