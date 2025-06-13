@@ -25,6 +25,34 @@ const ProtectedApp = () => {
   
   const { user, userProfile, showPaywall } = useAuth();
 
+  // Handle payment success redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment') === 'success') {
+      console.log('🎉 Payment successful! Refreshing user profile...');
+      // Remove the payment parameter from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Force refresh the page to reload user data from Firestore
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  }, []);
+
+  // Helper function to handle Stripe checkout
+  const handleStripeCheckout = (plan: 'starter' | 'pro') => {
+    const checkoutUrls = {
+      starter: 'https://buy.stripe.com/8x2aEW86o3Jq3Ub4Us4gg04',
+      pro: 'https://buy.stripe.com/cNi28q4Uc0xeaiz1Ig4gg05'
+    };
+    
+    const successUrl = encodeURIComponent(window.location.origin + '/app?payment=success');
+    const checkoutUrl = `${checkoutUrls[plan]}?success_url=${successUrl}`;
+    
+    // Redirect in same window for better UX
+    window.location.href = checkoutUrl;
+  };
+
   // Handler functions for business actions (from your original code)
   const handleResearch = (business: any) => {
     const searchQuery = encodeURIComponent(`${business.name} ${business.address || business.vicinity}`);
