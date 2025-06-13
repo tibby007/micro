@@ -1,138 +1,131 @@
-// src/contexts/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { User as FirebaseUserType } from 'firebase/auth';
-import {
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  signInWithEmailLink,
-  signOut,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import { auth } from '../firebase';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { auth, firestore } from "../firebase"; // Adjust if your paths differ
 
-export interface AppUserProfile {
+type AppUserProfile = {
   uid: string;
   email: string | null;
   brokerName: string;
   company: string;
   phone: string;
-  subscriptionStatus: 'trial' | 'starter' | 'pro' | 'inactive';
-  subscriptionPlan: 'trial' | 'starter' | 'pro' | null;
-  trialExpiresAt?: Date | string;
+  subscriptionStatus: string;
+  subscriptionPlan: string;
+  trialExpiresAt: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
   monthlySearchesUsed: number;
   monthlySearchLimit: number;
-  stripeCustomerId?: string | null;
-  stripeSubscriptionId?: string | null;
-
-}
-
-interface AuthContextType {
-  user: FirebaseUserType | null;
-  userProfile: AppUserProfile | null;
-  sendLoginLink: (email: string, brokerInfo?: Partial<Pick<AppUserProfile, 'brokerName' | 'company' | 'phone' | 'subscriptionPlan'>>) => Promise<void>;
-  logout: () => Promise<void>;
-  loading: boolean;
-  message: string;
-}
-
-const STRIPE_PAYMENT_LINKS: Record<'starter' | 'pro', string> = {
-  starter: 'https://buy.stripe.com/8x2aEW86o3Jq3Ub4Us4gg04',
-  pro: 'https://buy.stripe.com/cNi28q4Uc0xeaiz1Ig4gg05'
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+type AuthContextType = {
+  currentUser: any;
+  userProfile: AppUserProfile | null;
+  loading: boolean;
+  showPaywall: boolean;
+};
 
-export type { FirebaseUserType as User };
+const AuthContext = createContext<AuthContextType>({
+  currentUser: null,
+  userProfile: null,
+  loading: true,
+  showPaywall: false,
+});
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<FirebaseUserType | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<AppUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
-
-  const actionCodeSettings = {
-    url: `${window.location.origin}/app`,
-    handleCodeInApp: true,
-  };
-
-  const sendLoginLink = useCallback(async (email: string, brokerInfo?: Partial<Pick<AppUserProfile, 'brokerName' | 'company' | 'phone' | 'subscriptionPlan'>>) => {
-    try {
-      setMessage('');
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      localStorage.setItem('emailForSignIn', email);
-      if (brokerInfo) {
-        localStorage.setItem('brokerInfo', JSON.stringify(brokerInfo));
-      }
-      setMessage('Check your email! We sent you a secure login link.');
-    } catch (error: any) {
-      console.error("Error sending login link:", error);
-      setMessage(error.message || 'Failed to send login link.');
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    try {
-        await signOut(auth);
-        setCurrentUser(null);
-        setUserProfile(null);
-        localStorage.removeItem('brokerInfo');
-        setMessage('Successfully signed out.');
-    } catch (error) {
-        console.error("Error signing out: ", error);
-        setMessage("Failed to sign out.");
-    }
-  }, []);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setCurrentUser(fbUser);
 
       if (fbUser) {
-        const savedBrokerInfoString = localStorage.getItem('brokerInfo');
-        const brokerInfo = savedBrokerInfoString ? JSON.parse(savedBrokerInfoString) : {};
-        const newTrialDurationDays = 3;
-        const newTrialExpiresAt = new Date(Date.now() + newTrialDurationDays * 24 * 60 * 60 * 1000);
+        // Attempt to get brokerInfo from localStorage
+        const savedBrokerInfoString = localStorage.getItem("brokerInfo");
+        const brokerInfo = savedBrokerInfoString
+          ? JSON.parse(savedBrokerInfoString)
+          : {};
 
-        const profileForContext: AppUserProfile = {
+        // 3-day trial as default, can be overwritten by Firestore profile
+        const newTrialDurationDays = 3;
+        const newTrialExpiresAt = new Date(
+          Date.now() + newTrialDurationDays * 24 * 60 * 60 * 1000
+        );
+
+        // First, load the base profile (before Firestore)
+        let profileForContext: AppUserProfile = {
           uid: fbUser.uid,
           email: fbUser.email,
-          brokerName: brokerInfo.brokerName || fbUser.displayName || 'New Broker',
-          company: brokerInfo.company || 'New Company',
-          phone: brokerInfo.phone || '(000) 000-0000',
-          subscriptionStatus: 'trial',
-          subscriptionPlan: brokerInfo.plan || 'starter',
+          brokerName: brokerInfo.brokerName || fbUser.displayName || "New Broker",
+          company: brokerInfo.company || "New Company",
+          phone: brokerInfo.phone || "(000) 000-0000",
+          subscriptionStatus: "trial",
+          subscriptionPlan: brokerInfo.plan || "starter",
           trialExpiresAt: newTrialExpiresAt.toISOString(),
           stripeCustomerId: null,
           stripeSubscriptionId: null,
           monthlySearchesUsed: 0,
-          monthlySearchLimit: 999
+          monthlySearchLimit: 999,
         };
 
+        // Now, try to get their profile from Firestore (always trust Firestore over localStorage)
+        const userRef = doc(firestore, "users", fbUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          profileForContext = {
+            ...profileForContext,
+            subscriptionStatus: userData.subscriptionStatus || "trial",
+            trialExpiresAt: userData.trialExpiresAt
+              ? userData.trialExpiresAt.toDate().toISOString()
+              : newTrialExpiresAt.toISOString(),
+            stripeCustomerId: userData.stripeCustomerId || null,
+            stripeSubscriptionId: userData.stripeSubscriptionId || null,
+          };
+        }
+
         setUserProfile(profileForContext);
-        console.log("AuthContext: User profile set in context:", profileForContext);
 
-        if (localStorage.getItem('justSignedInViaLink') === 'true') {
-          localStorage.removeItem('justSignedInViaLink');
-          localStorage.removeItem('brokerInfo');
+        // --- Subscription status and trial check ---
+        const status = profileForContext.subscriptionStatus;
+        const trialExpiry = new Date(profileForContext.trialExpiresAt);
+        const hasActiveTrial = status === "trial" && trialExpiry > new Date();
+        const hasActiveSubscription = status === "active";
 
-          const selectedPlan: 'starter' | 'pro' = brokerInfo.plan || 'starter';
+        if (hasActiveSubscription || hasActiveTrial) {
+          setShowPaywall(false);
+        } else {
+          setShowPaywall(true);
+        }
+
+        // Stripe redirect after magic link sign-in
+        if (localStorage.getItem("justSignedInViaLink") === "true") {
+          localStorage.removeItem("justSignedInViaLink");
+          localStorage.removeItem("brokerInfo");
+
+          const selectedPlan: "starter" | "pro" =
+            brokerInfo.plan || "starter";
+          const STRIPE_PAYMENT_LINKS: Record<string, string> = {
+            starter: process.env.REACT_APP_STRIPE_STARTER_PAYMENT_LINK!,
+            pro: process.env.REACT_APP_STRIPE_PRO_PAYMENT_LINK!,
+          };
+
           const redirectUrl = STRIPE_PAYMENT_LINKS[selectedPlan];
-          console.log(`Redirecting to Stripe Checkout for plan: ${selectedPlan}`, redirectUrl);
-
-          window.location.href = redirectUrl;
-          return;
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+            return;
+          }
         }
       } else {
         setUserProfile(null);
-        localStorage.removeItem('brokerInfo');
+        localStorage.removeItem("brokerInfo");
       }
       setLoading(false);
     });
@@ -140,63 +133,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
+  // Optional: live updates if the Firestore user profile changes
+  // (Uncomment if you want real-time paywall updates)
+  /*
   useEffect(() => {
-    const handleEmailLinkSignIn = async () => {
-      if (isSignInWithEmailLink(auth, window.location.href)) {
-        setLoading(true);
-        let email = localStorage.getItem('emailForSignIn');
-  
-        if (!email) {
-          email = window.prompt('Please confirm your email to complete sign-in:');
+    if (currentUser) {
+      const userRef = doc(firestore, "users", currentUser.uid);
+      const unsubscribe = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          setUserProfile((prev) => ({
+            ...prev!,
+            subscriptionStatus: userData.subscriptionStatus || "trial",
+            trialExpiresAt: userData.trialExpiresAt
+              ? userData.trialExpiresAt.toDate().toISOString()
+              : prev!.trialExpiresAt,
+            stripeCustomerId: userData.stripeCustomerId || null,
+            stripeSubscriptionId: userData.stripeSubscriptionId || null,
+          }));
         }
-  
-        if (email) {
-          try {
-            await signInWithEmailLink(auth, email, window.location.href);
-  
-            // Set the flag so onAuthStateChanged knows to redirect to Stripe
-            localStorage.setItem('justSignedInViaLink', 'true');
-  
-            // Clean up
-            localStorage.removeItem('emailForSignIn');
-  
-            // ✅ Let onAuthStateChanged handle the redirect
-            if (window.history.replaceState) {
-              window.history.replaceState(null, '', '/app');
-            } else {
-              window.location.href = '/app';
-            }
-  
-            console.log('✅ Email link sign-in complete. Flag set for Stripe redirect.');
-  
-          } catch (error: any) {
-            console.error('❌ Failed to complete email link sign-in:', error);
-            setMessage('Sign-in failed. Please try again.');
-          } finally {
-            setLoading(false);
-          }
-        } else {
-          setLoading(false);
-        }
-      }
-    };
-  
-    handleEmailLinkSignIn();
-  }, []);
-  
-
-  const value: AuthContextType = {
-    user: currentUser,
-    userProfile,
-    sendLoginLink,
-    logout,
-    loading,
-    message
-  };
+      });
+      return unsubscribe;
+    }
+  }, [currentUser]);
+  */
 
   return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
+    <AuthContext.Provider
+      value={{ currentUser, userProfile, loading, showPaywall }}
+    >
+      {children}
     </AuthContext.Provider>
   );
 }

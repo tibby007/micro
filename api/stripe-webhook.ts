@@ -70,11 +70,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await userDoc.ref.update({
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscriptionId,
-          subscriptionStatus: 'active',
-          trialExpiresAt: admin.firestore.Timestamp.fromMillis(
-            Date.now() + 3 * 24 * 60 * 60 * 1000
-          ),
+          subscriptionStatus: 'trial', // <-- set this!
+          trialExpiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 24 * 60 * 60 * 1000),
         });
+        
         console.log(`✅ Updated user ${email} with Stripe subscription info`);
       } else {
         // Create new
