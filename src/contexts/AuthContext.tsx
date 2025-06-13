@@ -171,6 +171,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     message: null // <-- stub
   }}
 >
-  {children}
-</AuthContext.Provider>
+{children}
+    </AuthContext.Provider>
+  );
+}
+
+export default AuthProvider;
 
