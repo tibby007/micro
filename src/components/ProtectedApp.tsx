@@ -55,6 +55,8 @@ const ProtectedApp = () => {
 
   // Helper function to handle Stripe checkout
   const handleStripeCheckout = async (plan: 'starter' | 'pro') => {
+    console.log('🔘 Checkout clicked for plan:', plan);
+    
     try {
       // Call your API to create a checkout session
       const response = await fetch('/api/create-checkout-session', {
@@ -68,21 +70,28 @@ const ProtectedApp = () => {
         }),
       });
 
-      const { url } = await response.json();
-      
-      if (url) {
-        // Redirect to Stripe Checkout
-        window.location.href = url;
-      } else {
-        console.error('Failed to create checkout session');
+      if (response.ok) {
+        const { url } = await response.json();
+        
+        if (url) {
+          console.log('✅ Checkout session created, redirecting to:', url);
+          window.location.href = url;
+          return;
+        }
       }
+      
+      throw new Error('Failed to create checkout session');
     } catch (error) {
-      console.error('Error creating checkout session:', error);
-      // Fallback to old payment links
+      console.error('❌ Error creating checkout session:', error);
+      console.log('🔄 Falling back to payment links...');
+      
+      // Fallback to direct payment links with redirect
       const checkoutUrls = {
         starter: 'https://buy.stripe.com/8x2aEW86o3Jq3Ub4Us4gg04',
         pro: 'https://buy.stripe.com/cNi28q4Uc0xeaiz1Ig4gg05'
       };
+      
+      console.log('🔗 Redirecting to payment link:', checkoutUrls[plan]);
       window.location.href = checkoutUrls[plan];
     }
   };
