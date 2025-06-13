@@ -103,6 +103,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
       }
 
+      case 'invoice.payment_succeeded': {
+        console.log('💰 Processing invoice.payment_succeeded');
+        const invoice = event.data.object as any;
+        const customerId = invoice.customer as string;
+        const subscriptionId = invoice.subscription as string;
+
+        console.log('💰 Invoice data:', {
+          customerId,
+          subscriptionId,
+          amount: invoice.amount_paid,
+          customer_email: invoice.customer_email
+        });
+
+        if (customerId && subscriptionId) {
+          console.log('🔍 Updating user with Stripe customer ID:', customerId);
+          // Find user by Stripe customer ID and update subscription status
+          const userRef = admin.firestore().collection('users').where('stripeCustomerId', '==', customerId).limit(1);
+          const snapshot = await userRef.get();
+          
+          if (!snapshot.empty) {
+            console.log('✅ Found user by Stripe customer ID, updating subscription status');
+            const userDoc = snapshot.docs[0];
+            await userDoc.ref.update({
+              subscriptionStatus: 'active',
+              stripeSubscriptionId: subscriptionId,
+            });
+            console.log(`✅ Updated subscription status to active for customer ${customerId}`);
+          } else {
+            console.warn(`⚠️ No user found with Stripe customer ID ${customerId}`);
+          }
+        }
+        break;
+      }
+
       // Add more event types here if needed (subscription updates, cancellations, etc)
       default:
         console.log(`Unhandled event type ${event.type}`);
