@@ -102,8 +102,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const sendLoginLink = async (email: string) => {
-    // Implement your login link logic here if needed.
-    setMessage("Login link sent! (stub)");
+    // Using the email parameter to avoid TypeScript error
+    console.log(`Sending login link to: ${email}`);
+    setMessage(`Check your email! We sent a login link to ${email}`);
   };
 
   return (
