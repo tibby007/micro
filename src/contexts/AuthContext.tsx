@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { auth, firestore } from "../firebase"; // Adjust if your paths differ
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase";
 
+// ===== TYPE DEFINITIONS =====
 type AppUserProfile = {
   uid: string;
   email: string | null;
@@ -32,10 +33,7 @@ const AuthContext = createContext<AuthContextType>({
   showPaywall: false,
 });
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
-
+// ===== CONTEXT PROVIDER =====
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<AppUserProfile | null>(null);
@@ -47,134 +45,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(fbUser);
 
       if (fbUser) {
-        // Attempt to get brokerInfo from localStorage
-        const savedBrokerInfoString = localStorage.getItem("brokerInfo");
-        const brokerInfo = savedBrokerInfoString
-          ? JSON.parse(savedBrokerInfoString)
-          : {};
+        // Fetch user profile from Firestore if it exists
+        const userDoc = await getDoc(doc(db, "users", fbUser.uid));
+        let profile: AppUserProfile;
 
-        // 3-day trial as default, can be overwritten by Firestore profile
-        const newTrialDurationDays = 3;
-        const newTrialExpiresAt = new Date(
-          Date.now() + newTrialDurationDays * 24 * 60 * 60 * 1000
-        );
-
-        // First, load the base profile (before Firestore)
-        let profileForContext: AppUserProfile = {
-          uid: fbUser.uid,
-          email: fbUser.email,
-          brokerName: brokerInfo.brokerName || fbUser.displayName || "New Broker",
-          company: brokerInfo.company || "New Company",
-          phone: brokerInfo.phone || "(000) 000-0000",
-          subscriptionStatus: "trial",
-          subscriptionPlan: brokerInfo.plan || "starter",
-          trialExpiresAt: newTrialExpiresAt.toISOString(),
-          stripeCustomerId: null,
-          stripeSubscriptionId: null,
-          monthlySearchesUsed: 0,
-          monthlySearchLimit: 999,
-        };
-
-        // Now, try to get their profile from Firestore (always trust Firestore over localStorage)
-        const userRef = doc(firestore, "users", fbUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          profileForContext = {
-            ...profileForContext,
-            subscriptionStatus: userData.subscriptionStatus || "trial",
-            trialExpiresAt: userData.trialExpiresAt
-              ? userData.trialExpiresAt.toDate().toISOString()
-              : newTrialExpiresAt.toISOString(),
-            stripeCustomerId: userData.stripeCustomerId || null,
-            stripeSubscriptionId: userData.stripeSubscriptionId || null,
-          };
-        }
-
-        setUserProfile(profileForContext);
-
-        // --- Subscription status and trial check ---
-        const status = profileForContext.subscriptionStatus;
-        const trialExpiry = new Date(profileForContext.trialExpiresAt);
-        const hasActiveTrial = status === "trial" && trialExpiry > new Date();
-        const hasActiveSubscription = status === "active";
-
-        if (hasActiveSubscription || hasActiveTrial) {
-          setShowPaywall(false);
+        if (userDoc.exists()) {
+          profile = userDoc.data() as AppUserProfile;
         } else {
-          setShowPaywall(true);
-        }
+          // Fallback to dummy info for new users
+          const brokerInfoString = localStorage.getItem("brokerInfo");
+          const brokerInfo = brokerInfoString ? JSON.parse(brokerInfoString) : {};
+          const newTrialExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
-        // Stripe redirect after magic link sign-in
-        if (localStorage.getItem("justSignedInViaLink") === "true") {
-          localStorage.removeItem("justSignedInViaLink");
-          localStorage.removeItem("brokerInfo");
-
-          const selectedPlan: "starter" | "pro" =
-            brokerInfo.plan || "starter";
-          const STRIPE_PAYMENT_LINKS: Record<string, string> = {
-            starter: process.env.REACT_APP_STRIPE_STARTER_PAYMENT_LINK!,
-            pro: process.env.REACT_APP_STRIPE_PRO_PAYMENT_LINK!,
+          profile = {
+            uid: fbUser.uid,
+            email: fbUser.email,
+            brokerName: brokerInfo.brokerName || fbUser.displayName || "New Broker",
+            company: brokerInfo.company || "New Company",
+            phone: brokerInfo.phone || "(000) 000-0000",
+            subscriptionStatus: "trial",
+            subscriptionPlan: brokerInfo.plan || "starter",
+            trialExpiresAt: newTrialExpiresAt.toISOString(),
+            stripeCustomerId: null,
+            stripeSubscriptionId: null,
+            monthlySearchesUsed: 0,
+            monthlySearchLimit: 999,
           };
-
-          const redirectUrl = STRIPE_PAYMENT_LINKS[selectedPlan];
-          if (redirectUrl) {
-            window.location.href = redirectUrl;
-            return;
-          }
         }
+
+        setUserProfile(profile);
+
+        // -- PAYWALL LOGIC --
+        const trialExpiry = new Date(profile.trialExpiresAt);
+        const hasActiveTrial = profile.subscriptionStatus === "trial" && trialExpiry > new Date();
+        const hasActiveSubscription = profile.subscriptionStatus === "active";
+        setShowPaywall(!(hasActiveSubscription || hasActiveTrial));
       } else {
         setUserProfile(null);
         localStorage.removeItem("brokerInfo");
+        setShowPaywall(false);
       }
+
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  // Optional: live updates if the Firestore user profile changes
-  // (Uncomment if you want real-time paywall updates)
-  /*
-  useEffect(() => {
-    if (currentUser) {
-      const userRef = doc(firestore, "users", currentUser.uid);
-      const unsubscribe = onSnapshot(userRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const userData = docSnap.data();
-          setUserProfile((prev) => ({
-            ...prev!,
-            subscriptionStatus: userData.subscriptionStatus || "trial",
-            trialExpiresAt: userData.trialExpiresAt
-              ? userData.trialExpiresAt.toDate().toISOString()
-              : prev!.trialExpiresAt,
-            stripeCustomerId: userData.stripeCustomerId || null,
-            stripeSubscriptionId: userData.stripeSubscriptionId || null,
-          }));
-        }
-      });
-      return unsubscribe;
-    }
-  }, [currentUser]);
-  */
-
   return (
     <AuthContext.Provider
-  value={{
-    currentUser,
-    userProfile,
-    loading,
-    showPaywall,
-    user: currentUser, // <-- legacy support, fix this properly later
-    logout: () => auth.signOut(), // <-- stub logout
-    sendLoginLink: async () => {}, // <-- stub, fill in later
-    message: null // <-- stub
-  }}
->
-{children}
+      value={{
+        currentUser,
+        userProfile,
+        loading,
+        showPaywall,
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   );
 }
 
-export default AuthProvider;
-
+// ===== CUSTOM HOOK =====
+export function useAuth() {
+  return useContext(AuthContext);
+}
