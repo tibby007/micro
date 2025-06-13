@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
-// ===== TYPE DEFINITIONS =====
 type AppUserProfile = {
   uid: string;
   email: string | null;
@@ -24,6 +23,10 @@ type AuthContextType = {
   userProfile: AppUserProfile | null;
   loading: boolean;
   showPaywall: boolean;
+  user: any;
+  logout: () => Promise<void>;
+  sendLoginLink: (email: string) => Promise<void>;
+  message: string | null;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -31,28 +34,30 @@ const AuthContext = createContext<AuthContextType>({
   userProfile: null,
   loading: true,
   showPaywall: false,
+  user: null,
+  logout: async () => {},
+  sendLoginLink: async () => {},
+  message: null,
 });
 
-// ===== CONTEXT PROVIDER =====
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<AppUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setCurrentUser(fbUser);
 
       if (fbUser) {
-        // Fetch user profile from Firestore if it exists
         const userDoc = await getDoc(doc(db, "users", fbUser.uid));
         let profile: AppUserProfile;
 
         if (userDoc.exists()) {
           profile = userDoc.data() as AppUserProfile;
         } else {
-          // Fallback to dummy info for new users
           const brokerInfoString = localStorage.getItem("brokerInfo");
           const brokerInfo = brokerInfoString ? JSON.parse(brokerInfoString) : {};
           const newTrialExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
@@ -75,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUserProfile(profile);
 
-        // -- PAYWALL LOGIC --
         const trialExpiry = new Date(profile.trialExpiresAt);
         const hasActiveTrial = profile.subscriptionStatus === "trial" && trialExpiry > new Date();
         const hasActiveSubscription = profile.subscriptionStatus === "active";
@@ -92,6 +96,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
+  // --- STUBS for backward compatibility ---
+  const logout = async () => {
+    await signOut(auth);
+  };
+
+  const sendLoginLink = async (email: string) => {
+    // Implement your login link logic here if needed.
+    setMessage("Login link sent! (stub)");
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -99,6 +113,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userProfile,
         loading,
         showPaywall,
+        user: currentUser,
+        logout,
+        sendLoginLink,
+        message,
       }}
     >
       {children}
@@ -106,7 +124,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ===== CUSTOM HOOK =====
 export function useAuth() {
   return useContext(AuthContext);
 }
