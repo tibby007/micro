@@ -3,12 +3,15 @@ import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/au
 
 const CompleteSignInPage: React.FC = () => {
   const [status, setStatus] = useState('Completing sign-in...');
+  
   useEffect(() => {
     const auth = getAuth();
     const url = window.location.href;
     let email: string = window.localStorage.getItem('emailForSignIn') ?? '';
+    
     if (!email) {
-      email = window.prompt('Please provide your email for confirmation');
+      // Handle the potential null return from prompt
+      email = window.prompt('Please provide your email for confirmation') ?? '';
     }
 
     if (isSignInWithEmailLink(auth, url) && email) {
