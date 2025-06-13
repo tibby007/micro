@@ -23,48 +23,8 @@ const ProtectedApp = () => {
   const [searchIndustry, setSearchIndustry] = useState('');
   const [activeBusinessTab, setActiveBusinessTab] = useState<{ [key: string]: string }>({});
   
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, showPaywall } = useAuth();
 
-  // ---- NEW STATE VARIABLES FOR TRIAL LOGIC ----
-  const [isTrialExpired, setIsTrialExpired] = useState<boolean>(false);
-  const [canUseApp, setCanUseApp] = useState<boolean>(false);
-  // ---- END NEW STATE VARIABLES ----
-
-  // ---- NEW useEffect HOOK FOR TRIAL CHECK ----
-  useEffect(() => {
-    if (userProfile && userProfile.trialExpiresAt) {
-      const now = new Date();
-      const expiryDate = new Date(userProfile.trialExpiresAt);
-  
-      if (
-        userProfile.subscriptionStatus === 'trial' &&
-        !userProfile.stripeSubscriptionId
-      ) {
-        console.log("Redirecting trial user without Stripe to payment screen.");
-        setCanUseApp(false);
-        setIsTrialExpired(false);
-        return;
-      }
-  
-      if (userProfile.subscriptionStatus === 'trial') {
-        if (now > expiryDate) {
-          console.log("TRIAL EXPIRED");
-          setIsTrialExpired(true);
-          setCanUseApp(false);
-        } else {
-          console.log("ACTIVE TRIAL");
-          setIsTrialExpired(false);
-          setCanUseApp(true);
-        }
-      } else if (userProfile.subscriptionStatus === 'pro' || userProfile.subscriptionStatus === 'starter') {
-        setIsTrialExpired(false);
-        setCanUseApp(true);
-      }
-    }
-  }, [userProfile]);
-  
-  // ---- END NEW useEffect HOOK ----
-  
   // Handler functions for business actions (from your original code)
   const handleResearch = (business: any) => {
     const searchQuery = encodeURIComponent(`${business.name} ${business.address || business.vicinity}`);
@@ -189,8 +149,6 @@ const ProtectedApp = () => {
             <button
               onClick={() => {
                 auth.signOut();
-                // Consider using react-router for navigation if it's a SPA and you have one set up
-                // For now, window.location.href is fine for a simple redirect.
                 window.location.href = '/'; 
               }}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium transition-colors whitespace-nowrap"
@@ -202,10 +160,10 @@ const ProtectedApp = () => {
           {userProfile && ( 
             <div className="text-gray-400 text-left">
                 <p>Welcome, {userProfile.brokerName || user?.displayName || 'Broker'} from {userProfile.company || 'Your Company'}</p>
-                {!isTrialExpired && userProfile.subscriptionStatus === 'trial' && (
+                {!showPaywall && userProfile.subscriptionStatus === 'trial' && (
                     <p className="text-sm text-yellow-400">🎯 3-Day Free Trial Active</p>
                 )}
-                {isTrialExpired && userProfile.subscriptionStatus === 'trial' && (
+                {showPaywall && userProfile.subscriptionStatus === 'trial' && (
                      <p className="text-sm text-red-400">🚨 Your 3-Day Trial Has Expired!</p>
                 )}
             </div>
@@ -213,7 +171,7 @@ const ProtectedApp = () => {
         </div>
 
         {/* TRIAL EXPIRY / UPGRADE BANNER */}
-        {isTrialExpired && userProfile?.subscriptionStatus === 'trial' && (
+        {showPaywall && userProfile?.subscriptionStatus === 'trial' && (
           <div className="bg-red-600 text-white p-4 rounded-lg mb-6 text-center">
             <h3 className="font-bold text-lg mb-1">Your Free Trial Has Expired!</h3>
             <p className="text-sm mb-3">
@@ -233,7 +191,7 @@ const ProtectedApp = () => {
         )}
         
         {/* Original Upgrade Banner - Show if NOT expired AND still on trial */}
-        {!isTrialExpired && userProfile?.subscriptionStatus === 'trial' && (
+        {!showPaywall && userProfile?.subscriptionStatus === 'trial' && (
             <div className="bg-yellow-500 text-black p-4 rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h3 className="font-bold text-lg mb-1">🎯 Trial Account - Upgrade to Unlock Full Access!</h3>
@@ -312,19 +270,19 @@ const ProtectedApp = () => {
           </div>
           <button
             onClick={handleSearch}
-            disabled={!canUseApp || isLoading || !city || !industry} // MODIFIED
+            disabled={showPaywall || isLoading || !city || !industry}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
           >
             {isLoading ? (<span className="flex items-center justify-center"><span className="animate-spin mr-2">⚪</span> Finding & Enriching Opportunities...</span>) : ('Search for Opportunities')}
           </button>
 
-          {!canUseApp && userProfile && (
+          {showPaywall && userProfile && (
             <div className="mt-6 text-center text-yellow-400 p-4 bg-gray-700 rounded-lg">
                 <p>Please upgrade your plan to search for opportunities.</p>
             </div>
           )}
-          {canUseApp && searchError && (<div className="mt-4 p-3 bg-red-600 rounded-lg"><p className="text-white">{searchError}</p></div>)}
-          {canUseApp && searchResults.length > 0 && (
+          {!showPaywall && searchError && (<div className="mt-4 p-3 bg-red-600 rounded-lg"><p className="text-white">{searchError}</p></div>)}
+          {!showPaywall && searchResults.length > 0 && (
             <div className="mt-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-white"> Found {searchResults.length} businesses in {searchCity} - {searchIndustry}</h3>
