@@ -33,7 +33,7 @@ export default function LoginPage() {
           phone: phone || '',
           plan: plan || 'starter'
         };
-        await sendLoginLink(email, brokerInfo);
+        await sendLoginLink(email);
       } else {
         await sendLoginLink(email);
       }
