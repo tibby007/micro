@@ -1,32 +1,22 @@
-// /api/stripe-webhook.ts
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { buffer } from 'micro';
 import Stripe from 'stripe';
-import admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
 
-// Debug your env vars (leave these here for now)
-console.log('ENV STRIPE_SECRET_KEY', !!process.env.STRIPE_SECRET_KEY);
-console.log('ENV STRIPE_WEBHOOK_SECRET', !!process.env.STRIPE_WEBHOOK_SECRET);
-console.log('ENV FIREBASE_SERVICE_ACCOUNT', !!process.env.FIREBASE_SERVICE_ACCOUNT);
-console.log('ENV FIREBASE_DATABASE_URL', !!process.env.FIREBASE_DATABASE_URL);
-
+// ENV
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2022-11-15',
 });
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const firebaseServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT!;
+const firebaseDatabaseUrl = process.env.FIREBASE_DATABASE_URL;
 
-// Initialize Firebase Admin *AFTER* import
+// Firebase Admin Init
 if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string)),
-      databaseURL: process.env.FIREBASE_DATABASE_URL,
-    });
-    console.log('Firebase initialized');
-  } catch (err) {
-    console.error('Firebase init error:', err);
-  }
+  admin.initializeApp({
+    credential: admin.credential.cert(JSON.parse(firebaseServiceAccount)),
+    databaseURL: firebaseDatabaseUrl,
+  });
 }
 
 export const config = {
@@ -54,25 +44,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
+      const email =
+        session.customer_details?.email ||
+        session.metadata?.email ||
+        (session as any).customer_email ||
+        null;
+
       const customerId = session.customer as string;
       const subscriptionId = session.subscription as string;
-      const email = session.customer_details?.email || session.metadata?.email;
 
-      if (email && customerId && subscriptionId) {
-        const userRef = admin.firestore().collection('users').where('email', '==', email).limit(1);
-        const snapshot = await userRef.get();
-        if (!snapshot.empty) {
-          const userDoc = snapshot.docs[0];
-          await userDoc.ref.update({
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscriptionId,
-            subscriptionStatus: 'active',
-            trialExpiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 24 * 60 * 60 * 1000),
-          });
-          console.log(`✅ Updated user ${email} with Stripe subscription info`);
-        } else {
-          console.warn(`⚠️ No user found for email ${email}`);
-        }
+      if (!email || !customerId || !subscriptionId) {
+        console.warn(
+          `⚠️ Missing one or more values: email=${email}, customerId=${customerId}, subscriptionId=${subscriptionId}`
+        );
+        break;
+      }
+
+      // Firestore: Find user by email
+      const usersRef = admin.firestore().collection('users');
+      const snapshot = await usersRef.where('email', '==', email).limit(1).get();
+
+      if (!snapshot.empty) {
+        // Update existing
+        const userDoc = snapshot.docs[0];
+        await userDoc.ref.update({
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          subscriptionStatus: 'active',
+          trialExpiresAt: admin.firestore.Timestamp.fromMillis(
+            Date.now() + 3 * 24 * 60 * 60 * 1000
+          ),
+        });
+        console.log(`✅ Updated user ${email} with Stripe subscription info`);
+      } else {
+        // Create new
+        await usersRef.add({
+          email,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: subscriptionId,
+          subscriptionStatus: 'active',
+          trialExpiresAt: admin.firestore.Timestamp.fromMillis(
+            Date.now() + 3 * 24 * 60 * 60 * 1000
+          ),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`✅ Created user ${email} with Stripe subscription info`);
       }
       break;
     }
