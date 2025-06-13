@@ -13,8 +13,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const firestore = db; // ADD THIS FOR BACKWARD COMPATIBILITY
 
-// ADD THIS:
 export const STRIPE_PUBLISHABLE_KEY = "pk_live_51NMtedB1YJBVEg8wcVl97PdHHsg7l0Hk3QB62klCxn3LocrMKncABtNvmjfwUEj3bhL7Du6uNEJYTdfbtB2mePsF00glVcxgKu";

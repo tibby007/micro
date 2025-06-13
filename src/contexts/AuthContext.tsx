@@ -160,9 +160,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ currentUser, userProfile, loading, showPaywall }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  value={{
+    currentUser,
+    userProfile,
+    loading,
+    showPaywall,
+    user: currentUser, // <-- legacy support, fix this properly later
+    logout: () => auth.signOut(), // <-- stub logout
+    sendLoginLink: async () => {}, // <-- stub, fill in later
+    message: null // <-- stub
+  }}
+>
+  {children}
+</AuthContext.Provider>
+
