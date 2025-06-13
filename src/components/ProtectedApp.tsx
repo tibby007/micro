@@ -22,35 +22,69 @@ const ProtectedApp = () => {
   const [searchCity, setSearchCity] = useState('');
   const [searchIndustry, setSearchIndustry] = useState('');
   const [activeBusinessTab, setActiveBusinessTab] = useState<{ [key: string]: string }>({});
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   
   const { user, userProfile, showPaywall } = useAuth();
 
   // Handle payment success redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('payment') === 'success') {
-      console.log('🎉 Payment successful! Refreshing user profile...');
-      // Remove the payment parameter from URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      // Force refresh the page to reload user data from Firestore
-      setTimeout(() => {
+    const hasPaymentParam = urlParams.get('payment') === 'success';
+    const referrerFromStripe = document.referrer && document.referrer.includes('stripe.com');
+    
+    // Check if user just came from Stripe or has payment parameter
+    if (hasPaymentParam || referrerFromStripe) {
+      console.log('🎉 Payment detected! Refreshing user profile...');
+      setIsProcessingPayment(true);
+      
+      // Remove the payment parameter from URL if it exists
+      if (hasPaymentParam) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      
+      // Wait for webhook to process, then refresh
+      const refreshUser = async () => {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('Refreshing page to load updated user data...');
         window.location.reload();
-      }, 2000);
+      };
+      
+      refreshUser();
     }
   }, []);
 
   // Helper function to handle Stripe checkout
-  const handleStripeCheckout = (plan: 'starter' | 'pro') => {
-    const checkoutUrls = {
-      starter: 'https://buy.stripe.com/8x2aEW86o3Jq3Ub4Us4gg04',
-      pro: 'https://buy.stripe.com/cNi28q4Uc0xeaiz1Ig4gg05'
-    };
-    
-    const successUrl = encodeURIComponent(window.location.origin + '/app?payment=success');
-    const checkoutUrl = `${checkoutUrls[plan]}?success_url=${successUrl}`;
-    
-    // Redirect in same window for better UX
-    window.location.href = checkoutUrl;
+  const handleStripeCheckout = async (plan: 'starter' | 'pro') => {
+    try {
+      // Call your API to create a checkout session
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: plan,
+          userEmail: user?.email || userProfile?.email,
+        }),
+      });
+
+      const { url } = await response.json();
+      
+      if (url) {
+        // Redirect to Stripe Checkout
+        window.location.href = url;
+      } else {
+        console.error('Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      // Fallback to old payment links
+      const checkoutUrls = {
+        starter: 'https://buy.stripe.com/8x2aEW86o3Jq3Ub4Us4gg04',
+        pro: 'https://buy.stripe.com/cNi28q4Uc0xeaiz1Ig4gg05'
+      };
+      window.location.href = checkoutUrls[plan];
+    }
   };
 
   // Handler functions for business actions (from your original code)
@@ -198,6 +232,25 @@ const ProtectedApp = () => {
           )}
         </div>
 
+        {/* Payment Processing Banner */}
+        {isProcessingPayment && (
+          <div className="bg-green-600 text-white p-4 rounded-lg mb-6 text-center">
+            <h3 className="font-bold text-lg mb-1">🎉 Payment Successful!</h3>
+            <p className="text-sm mb-3">
+              Setting up your account... You'll have search access in just a moment.
+            </p>
+            <div className="flex justify-center items-center gap-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+              <button 
+                onClick={() => window.location.reload()}
+                className="bg-white text-green-600 px-4 py-2 rounded font-bold hover:bg-gray-100 transition-colors"
+              >
+                Refresh Now
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* TRIAL EXPIRY / UPGRADE BANNER */}
         {showPaywall && userProfile?.subscriptionStatus === 'trial' && (
           <div className="bg-red-600 text-white p-4 rounded-lg mb-6 text-center">
@@ -212,11 +265,11 @@ const ProtectedApp = () => {
             </p>
             <div className="flex gap-3 justify-center">
               <button 
-                onClick={() => window.open('https://buy.stripe.com/8x2aEW86o3Jq3Ub4Us4gg04', '_blank')}
+                onClick={() => handleStripeCheckout('starter')}
                 className="bg-white text-black px-4 py-2 rounded font-bold hover:bg-gray-100 transition-colors"
               > Get Starter </button>
               <button 
-                onClick={() => window.open('https://buy.stripe.com/cNi28q4Uc0xeaiz1Ig4gg05', '_blank')}
+                onClick={() => handleStripeCheckout('pro')}
                 className="bg-black text-yellow-400 px-6 py-2 rounded font-bold hover:bg-gray-900 transition-colors"
               > Go Pro </button>
             </div>
@@ -234,11 +287,11 @@ const ProtectedApp = () => {
                 </div>
                 <div className="flex gap-3">
                     <button 
-                    onClick={() => window.open('https://buy.stripe.com/8x2aEW86o3Jq3Ub4Us4gg04', '_blank')}
+                    onClick={() => handleStripeCheckout('starter')}
                     className="bg-white text-black px-4 py-2 rounded font-bold hover:bg-gray-100 transition-colors"
                     > Get Starter </button>
                     <button 
-                    onClick={() => window.open('https://buy.stripe.com/cNi28q4Uc0xeaiz1Ig4gg05', '_blank')}
+                    onClick={() => handleStripeCheckout('pro')}
                     className="bg-black text-yellow-400 px-6 py-2 rounded font-bold hover:bg-gray-900 transition-colors"
                     > Go Pro </button>
                 </div>
