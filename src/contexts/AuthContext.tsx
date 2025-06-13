@@ -132,7 +132,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const trialExpiry = new Date(profile.trialExpiresAt);
         const hasActiveTrial = profile.subscriptionStatus === "trial" && trialExpiry > new Date();
         const hasActiveSubscription = profile.subscriptionStatus === "active";
-        const shouldShowPaywall = !(hasActiveSubscription || hasActiveTrial);
+        const hasStripeSetup = profile.stripeCustomerId && profile.stripeSubscriptionId;
+        
+        // NEW LOGIC: Must have Stripe subscription setup (even for trial) to search
+        const canSearch = hasStripeSetup && (hasActiveSubscription || hasActiveTrial);
+        const shouldShowPaywall = !canSearch;
         
         // 💳 DEBUG: Log the paywall decision logic
         console.log("💳 Paywall logic:", {
@@ -140,6 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           trialExpiry: trialExpiry,
           hasActiveTrial,
           hasActiveSubscription,
+          hasStripeSetup,
+          canSearch,
           shouldShowPaywall,
           hasStripeCustomerId: !!profile.stripeCustomerId,
           hasStripeSubscriptionId: !!profile.stripeSubscriptionId
