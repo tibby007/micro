@@ -173,9 +173,14 @@ const ProtectedApp = () => {
         {/* TRIAL EXPIRY / UPGRADE BANNER */}
         {showPaywall && userProfile?.subscriptionStatus === 'trial' && (
           <div className="bg-red-600 text-white p-4 rounded-lg mb-6 text-center">
-            <h3 className="font-bold text-lg mb-1">Your Free Trial Has Expired!</h3>
+            <h3 className="font-bold text-lg mb-1">
+              {userProfile.stripeCustomerId ? 'Your Free Trial Has Expired!' : 'Begin Your 3-Day Free Trial!'}
+            </h3>
             <p className="text-sm mb-3">
-              Please upgrade to continue finding amazing micro ticket deals.
+              {userProfile.stripeCustomerId 
+                ? 'Please upgrade to continue finding amazing micro ticket deals.'
+                : 'Choose your plan below to start your trial and access deal search.'
+              }
             </p>
             <div className="flex gap-3 justify-center">
               <button 
