@@ -25,18 +25,24 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      
+
       if (isRegister) {
+        // Store broker info in localStorage before login
         const brokerInfo = {
           brokerName: brokerName || 'Broker',
           company: company || 'Your Company',
           phone: phone || '',
-          plan: plan || 'starter'
+          plan: plan || 'starter',
         };
-        await sendLoginLink(email);
+        localStorage.setItem('brokerInfo', JSON.stringify(brokerInfo));
       } else {
-        await sendLoginLink(email);
+        // Remove any lingering broker info on login (not registration)
+        localStorage.removeItem('brokerInfo');
       }
+
+      // Always call sendLoginLink with just email
+      await sendLoginLink(email);
+
     } catch (error: any) {
       console.error('Auth error:', error);
     } finally {
@@ -46,9 +52,9 @@ export default function LoginPage() {
 
   if (message && message.includes('Check your email')) {
     return (
-      <div style={{ 
+      <div style={{
         minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
         <div style={{ backgroundColor: 'white', padding: '32px', borderRadius: '8px', maxWidth: '400px', width: '100%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
           <div style={{ textAlign: 'center' }}>
@@ -72,11 +78,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
+    <div style={{
+      minHeight: '100vh', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '12px', maxWidth: '450px', width: '100%',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.3)' 
+      <div style={{
+        backgroundColor: 'white', padding: '40px', borderRadius: '12px', maxWidth: '450px', width: '100%',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <h1 style={{ fontSize: '30px', fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}>
