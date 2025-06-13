@@ -6,7 +6,7 @@ const CompleteSignInPage: React.FC = () => {
   useEffect(() => {
     const auth = getAuth();
     const url = window.location.href;
-    let email = window.localStorage.getItem('emailForSignIn') || '';
+    let email: string = window.localStorage.getItem('emailForSignIn') ?? '';
     if (!email) {
       email = window.prompt('Please provide your email for confirmation');
     }
